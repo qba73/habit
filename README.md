@@ -4,17 +4,17 @@ This is a Go program that helps with establishing new, and tracking existing hab
 
 ## Description
 
-When we're trying to establish a new habit (studying Go, for example), it can be difficult to maintain focus and motivation. Studies suggest that it takes many weeks of regularly performing a new habit before it becomes natural and automatic. So, if you can motivate yourself to do the new habit every day for a month or two, that'll get you well on the way.
+When we're trying to establish a new habit (studying, running, rowing for example), it can be difficult to maintain focus and motivation. Studies suggest that it takes many weeks of regularly performing a new habit before it becomes natural and automatic. So, if you can motivate yourself to do the new habit every day for a month or two, that'll get you well on the way.
 
-One thing that can help is to _track_ your performance of the habit. Suppose you decide that you're going to spend at least 15 minutes every day studying or writing Go programs. You could draw 30 boxes on a piece of paper, one for each of the next 30 days, and check off each box as you do that day's practice.
+One thing that can help is to _track_ your performance of the habit. Suppose you decide that you're going to spend at least 15 minutes every day studying or writing Go programs or going for a morning jog. You could draw 30 boxes on a piece of paper, one for each of the next 30 days, and check off each box as you do that day's practice.
 
 This simple idea can be surprisingly effective, because we don't like to break a _streak_. If you've successfully done the habit every day for 29 days, there's a strong incentive not to break that run of success. Life has a way of coming at you, and you might well need that extra motivation at some point. Not today, not tomorrow, but soon: probably just around the time the novelty wears off.
 
-The aim of this project is to produce a Go package and accompanying command-line tool that will help users track and establish a new habit, by reporting their current streak.
+The aim of this project is to produce a Go package and accompanying command-line tool called ```habctl``` (habit control) that will help users track and establish a new habit, by reporting their current streak.
 
-For example, if you decide you want to build the habit of jogging every day, you might tell the tool about it like this:
+For example, if you decide you want to build the habit of jogging every day, you might tell the habit tool about it like this:
 
-**`habit jog`**
+**`habctl jog`**
 
 ```
 Good luck with your new habit 'jog'! Don't forget to do it again
@@ -23,7 +23,7 @@ tomorrow.
 
 As the days go by, you might record each daily practice like this:
 
-**`habit jog`**
+**`habctl jog`**
 
 ```
 Nice work: you've done the habit 'jog' for 18 days in a row now.
@@ -32,7 +32,7 @@ Keep it up!
 
 If you happen to miss a couple of days, that's all right:
 
-**`habit jog`**
+**`habctl jog`**
 
 ```
 You last did the habit 'jog' 3 days ago, so you're starting a new
@@ -41,10 +41,10 @@ streak today. Good luck!
 
 If you just want to check how you're doing, you could run:
 
-**`habit`**
+**`habctl`**
 
 ```
-You're currently on a 16-day streak for 'piano'. Stick to it!
+You're currently on a 16-day streak for 'jog'. Stick to it!
 ```
 
 Maybe the news won't be quite so good:
