@@ -1,6 +1,6 @@
 # Habit tracker
 
-This is a Go project template, intended for students at the [Bitfield Institute of Technology](https://bitfieldconsulting.com/golang/bit)—but everyone's welcome to try it if you're interested in learning or practicing Go.
+This is a Go program that helps with establishing new, and tracking existing habits.
 
 ## Description
 
@@ -12,30 +12,30 @@ This simple idea can be surprisingly effective, because we don't like to break a
 
 The aim of this project is to produce a Go package and accompanying command-line tool that will help users track and establish a new habit, by reporting their current streak.
 
-For example, if you decide you want to build the habit of practising the piano, you might tell the tool about it like this:
+For example, if you decide you want to build the habit of jogging every day, you might tell the tool about it like this:
 
-**`habit piano`**
+**`habit jog`**
 
 ```
-Good luck with your new habit 'piano'! Don't forget to do it again
+Good luck with your new habit 'jog'! Don't forget to do it again
 tomorrow.
 ```
 
 As the days go by, you might record each daily practice like this:
 
-**`habit piano`**
+**`habit jog`**
 
 ```
-Nice work: you've done the habit 'piano' for 18 days in a row now.
+Nice work: you've done the habit 'jog' for 18 days in a row now.
 Keep it up!
 ```
 
 If you happen to miss a couple of days, that's all right:
 
-**`habit piano`**
+**`habit jog`**
 
 ```
-You last did the habit 'piano' 3 days ago, so you're starting a new
+You last did the habit 'jog' 3 days ago, so you're starting a new
 streak today. Good luck!
 ```
 
@@ -50,7 +50,7 @@ You're currently on a 16-day streak for 'piano'. Stick to it!
 Maybe the news won't be quite so good:
 
 ```
-It's been 4 days since you did 'piano'. It's okay, life happens. Get
+It's been 4 days since you did 'jog'. It's okay, life happens. Get
 back on that horse today!
 ```
 
@@ -79,3 +79,7 @@ Some more refinements to add to your program if you like:
 * Handle habits that you want to perform at some longer interval than a day (every week, perhaps)
 
 * Add a web interface to the program so that you can check and update your habit streaks using a web browser
+
+## Credits
+
+This is an educational Go project intended for students at the [Bitfield Institute of Technology](https://bitfieldconsulting.com/golang/bit).
