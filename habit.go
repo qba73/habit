@@ -87,3 +87,7 @@ func (h *Habit) Check() int {
 func habitDate(t time.Time) time.Time {
 	return t.UTC().Truncate(24 * time.Hour)
 }
+
+func RunCLI() {
+	fmt.Println("running habctl...")
+}
