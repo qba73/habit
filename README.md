@@ -1,3 +1,7 @@
+![Go](https://github.com/qba73/habit/workflows/Go/badge.svg)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/qba73/habit)
+![GitHub](https://img.shields.io/github/license/qba73/habit)
+
 # Habit tracker
 
 This is a Go program that helps with establishing new, and tracking existing habits.
