@@ -99,7 +99,7 @@ func TestHabit_PrintsMessageOnThreeDayStreak(t *testing.T) {
 	}
 }
 
-func TestHabits_PrintsMessageOnStartingNewStreakAfterBreak(t *testing.T) {
+func TestHabit_PrintsMessageOnStartingNewStreakAfterBreak(t *testing.T) {
 	t.Parallel()
 	fakeTerminal := &bytes.Buffer{}
 	habitName := "jog"
@@ -193,9 +193,58 @@ func TestHabit_PrintsNumberOfDaysSinceBrokenStreak(t *testing.T) {
 }
 
 var (
-	messageStartNewHabit                = "Good luck with your new habit '%s'! Don't forget to do it again tomorrow."
-	messageOnContinousStreak            = "Nice work: you've done the habit '%s' for %d days in a row now. Keep it up!"
-	messageOnStaringNewStreakAfterBreak = "You last did the habit '%s' %d days ago, so you're starting a new streak today. Good luck!"
-	messageOnBrokenStreakCheck          = "It's been %d days since you did '%s'. It's okay, life happens. Get back on that horse today!"
-	messageOnNotBrokenStreakCheck       = "You're currently on a %d-day streak for '%s'. Stick to it!"
+	messageStartNewHabit                = "Good luck with your new habit '%s'! Don't forget to do it again tomorrow.\n"
+	messageOnContinousStreak            = "Nice work: you've done the habit '%s' for %d days in a row now. Keep it up!\n"
+	messageOnStaringNewStreakAfterBreak = "You last did the habit '%s' %d days ago, so you're starting a new streak today. Good luck!\n"
+	messageOnBrokenStreakCheck          = "It's been %d days since you did '%s'. It's okay, life happens. Get back on that horse today!\n"
+	messageOnNotBrokenStreakCheck       = "You're currently on a %d-day streak for '%s'. Stick to it!\n"
 )
+
+func TestHabitNewFromFile_LoadsHabitDataFromJSONFile(t *testing.T) {
+	t.Parallel()
+	habitFilepath := "testdata/new_habit.json"
+	got, err := habit.LoadFromFile(habitFilepath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := &habit.Habit{
+		Name:  "walk",
+		Dates: []time.Time{time.Date(2022, 07, 15, 00, 00, 00, 00, time.UTC)},
+	}
+
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestHabitSaveToFile_SavesHabitDataToJSONFile(t *testing.T) {
+	t.Parallel()
+
+	h, err := habit.New("run", habit.WithOutput(io.Discard))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h.Dates = append(h.Dates,
+		time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -2),
+		time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -1),
+	)
+
+	path := t.TempDir() + "/run.json"
+
+	err = habit.SaveToFile(path, h)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h2, err := habit.LoadFromFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h2.Output = io.Discard
+
+	if !cmp.Equal(h, h2) {
+		t.Error(cmp.Diff(h, h2))
+	}
+}
