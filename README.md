@@ -87,3 +87,59 @@ Some more refinements to add to your program if you like:
 ## Credits
 
 This is an educational Go project intended for students at the [Bitfield Institute of Technology](https://bitfieldconsulting.com/golang/bit).
+
+# Development
+
+Install [**gotestdox**](https://github.com/bitfield/gotestdox)
+```
+go install github.com/bitfield/gotestdox/cmd/gotestdox@latest
+```
+
+## First Iteration
+
+
+Run tests
+```
+➜  habit git:(main) ✗ gotestdox
+github.com/qba73/habit:
+ ✔ Habit starts new activity with name and initial date (0.00s)
+ ✔ Habit prints number of days on not broken current streak (0.00s)
+ ✔ Habit records activity on next day (0.00s)
+ ✔ Habit does not log duplicated activity on the same day (0.00s)
+ ✔ Habit prints message on three day streak (0.00s)
+ ✔ Habit prints number of days since broken streak (0.00s)
+ ✔ Habit loads data from JSON file (0.00s)
+ ✔ Habit prints message on starting new streak after break (0.00s)
+ ✔ Habit saves habit data to file (0.00s)
+ ✔ Habit saves updated habit data to file (0.00s)
+```
+
+Build ```habctl```
+```
+go build -o habctl cmd/habctl/main.go
+```
+Track and manage your habit
+```
+./habctl walk
+Good luck with your new habit 'walk'! Don't forget to do it again tomorrow.
+
+./habctl
+You're currently on a 1-day streak for 'walk'. Stick to it!
+```
+```
+./habctl walk
+Nice work: you've done the habit 'walk' for 2 days in a row now. Keep it up!
+
+./habctl
+You're currently on a 2-day streak for 'walk'. Stick to it!
+```
+```
+./habctl
+It's been 6 days since you did 'walk'. It's okay, life happens. Get back on that horse today!
+
+./habctl walk
+You last did the habit 'walk' 6 days ago, so you're starting a new streak today. Good luck!
+
+./habctl
+You're currently on a 1-day streak for 'walk'. Stick to it!
+```
