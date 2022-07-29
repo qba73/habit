@@ -1,0 +1,11 @@
+# Should not panic if no habit.json file.
+exec habit
+stderr Usage
+
+# Should create habit.json when executed with habit name.
+exec habit jog
+grep jog habit.json
+cmp stdout file.golden
+
+-- file.golden --
+Good luck with your new habit 'jog'! Don't forget to do it again tomorrow.

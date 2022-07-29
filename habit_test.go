@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/qba73/habit"
+	"github.com/rogpeppe/go-internal/testscript"
 )
 
 func TestHabit_StartsNewActivityWithNameAndInitialDate(t *testing.T) {
@@ -240,3 +241,15 @@ var (
 	messageOnBrokenStreakCheck          = "It's been %d days since you did '%s'. It's okay, life happens. Get back on that horse today!\n"
 	messageOnNotBrokenStreakCheck       = "You're currently on a %d-day streak for '%s'. Stick to it!\n"
 )
+
+func TestMain(m *testing.M) {
+	testscript.RunMain(m, map[string]func() int{
+		"habit": func() int {
+			habit.RunCLI()
+			return 0
+		},
+	})
+}
+func TestScript(t *testing.T) {
+	testscript.Run(t, testscript.Params{Dir: "testdata/script"})
+}

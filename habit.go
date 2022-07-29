@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"time"
@@ -147,8 +148,9 @@ func RunCLI() {
 	// No args, so check habit and the file
 	if len(args) == 0 {
 		h, err := FromFile("./habit.json")
-		if err != nil {
-			panic(err)
+		if errors.Is(err, fs.ErrNotExist) {
+			fset.Usage()
+			os.Exit(0)
 		}
 		h.Check()
 		os.Exit(0)
@@ -157,8 +159,17 @@ func RunCLI() {
 	habitName := args[0]
 
 	h, err := FromFile("./habit.json")
-	if err != nil {
-		os.Exit(1)
+	if errors.Is(err, fs.ErrNotExist) {
+		// start new habit
+		h, err := New(habitName)
+		if err != nil {
+			os.Exit(1)
+		}
+		err = SaveToFile("./habit.json", h)
+		if err != nil {
+			os.Exit(1)
+		}
+		os.Exit(0)
 	}
 	if habitName != h.Name {
 		// start new habit
