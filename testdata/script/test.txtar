@@ -7,5 +7,13 @@ exec habit jog
 grep jog habit.json
 cmp stdout file.golden
 
+# Should report broken streak.
+exec habit walk
+exec habit walk
+cmp stdout file_empty.golden
+
 -- file.golden --
 Good luck with your new habit 'jog'! Don't forget to do it again tomorrow.
+-- file_broken_streak.golden --
+You last did the habit 'jog' 3 days ago, so you're starting a new streak today. Good luck!
+-- file_empty.golden --
