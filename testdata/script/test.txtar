@@ -7,8 +7,9 @@ exec habit jog
 grep jog habit.json
 cmp stdout file.golden
 
-# Should report broken streak.
+# Should not report on the same date entry.
 exec habit walk
+grep walk habit.json
 exec habit walk
 cmp stdout file_empty.golden
 
