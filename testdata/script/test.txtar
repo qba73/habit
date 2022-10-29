@@ -2,14 +2,22 @@
 exec habit
 stderr Usage
 
-# Should create habit.json when executed with habit name.
+# If $HOME is not writable it should fail
+# We test scenario when we try to save file to not existing dir.
+env HOME=/does-not-exist
+! exec habit jog
+stderr 'open /does-not-exist/.habit: no such file or directory'
+
+env HOME=$TMPDIR
+
+# Should create habit when executed with habit name.
 exec habit jog
-grep jog habit.json
+grep jog $HOME/.habit
 cmp stdout file.golden
 
 # Should not report on the same date entry.
 exec habit walk
-grep walk habit.json
+grep walk $HOME/.habit
 exec habit walk
 cmp stdout file_empty.golden
 
