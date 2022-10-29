@@ -142,6 +142,10 @@ func habitDate(t time.Time) time.Time {
 	return t.UTC().Truncate(24 * time.Hour)
 }
 
+func RunCLI() {
+	fmt.Println("dummy cli")
+}
+
 /*
 func RunCLI() {
 	fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
