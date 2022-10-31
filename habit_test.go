@@ -1,6 +1,7 @@
 package habit_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -19,6 +20,27 @@ func TestHabit_StartsNewActivityWithNameAndInitialDate(t *testing.T) {
 	if want != got {
 		t.Errorf("want %v, got %v", want, got)
 	}
+}
+
+func TestStartNewHabit_ConfiguresHabitAndReturnsCorrectMessage(t *testing.T) {
+	t.Parallel()
+	habitName := "jog"
+	h, err := habit.New(habitName)
+	if err != nil {
+		t.Error(err)
+	}
+	got := h.Start()
+	want := fmt.Sprintf("Good luck with your new habit '%s'. Don't forget to do it tomorrow.", habitName)
+	if want != got {
+		t.Error(cmp.Diff(want, got))
+	}
+
+	gotDate := h.Date
+	wantDate := time.Now().UTC().Truncate(24 * time.Hour)
+	if wantDate != gotDate {
+		t.Error(cmp.Diff(want, got))
+	}
+
 }
 
 func TestHabit_DoesNotLogDuplicatedActivityOnTheSameDay(t *testing.T) {
@@ -41,7 +63,7 @@ func TestHabit_DoesNotLogDuplicatedActivityOnTheSameDay(t *testing.T) {
 	}
 }
 
-func TestHabit_ChecksStreakLength(t *testing.T) {
+func TestCheck_ReportsValidStreakLengthOnNotBrokenStreak(t *testing.T) {
 	t.Parallel()
 	h, err := habit.New("jog")
 	if err != nil {
@@ -55,27 +77,42 @@ func TestHabit_ChecksStreakLength(t *testing.T) {
 
 	h.Date = time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
 	want = 1
-	got, _ = h.Check()
+	wantMessage := fmt.Sprintf("You're currently on a %d-day streak for '%s'. Stick to it!\n", want, h.Name)
+	got, msg := h.Check()
 	if want != got {
 		t.Errorf("want %d, got %d", want, got)
 	}
+
+	if wantMessage != msg {
+		t.Error(cmp.Diff(wantMessage, msg))
+	}
+
 }
 
-func TestHabit_RecordsActivityOnNextDay(t *testing.T) {
+func TestLog_RecordsActivityOnNextDayOnNotBrokenStreak(t *testing.T) {
 	t.Parallel()
 	h, err := habit.New("jog")
 	if err != nil {
 		t.Fatal(err)
 	}
 	h.Date = time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
-	h.Log()
+
+	got, msg := h.Log()
 	want := 2
-	got := h.Streak
 	if want != got {
 		t.Errorf("want %d, got %d", want, got)
 	}
+
+	wantMsg := fmt.Sprintf("Nice work: you've done the habit '%s' for %d days in a row now. Keep it up!\n", h.Name, want)
+	if wantMsg != msg {
+		t.Error(cmp.Diff(wantMsg, msg))
+	}
 }
 
+func TestCheck_ReturnsValidMessageOnBrokenStreak(t *testing.T) {
+	t.Parallel()
+
+}
 func TestHabit_StartsNewActivityAfterBrokenStreak(t *testing.T) {
 	t.Parallel()
 	h, err := habit.New("jog")

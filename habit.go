@@ -63,6 +63,11 @@ func New(name string) (*Habit, error) {
 	return &h, nil
 }
 
+func (h *Habit) Start() string {
+	h.startNewStreak()
+	return fmt.Sprintf("Good luck with your new habit '%s'. Don't forget to do it tomorrow.", h.Name)
+}
+
 func (h *Habit) startNewStreak() {
 	h.Date = habitDate(time.Now())
 	h.Streak = 1
@@ -83,7 +88,7 @@ func (h Habit) checkStreak() int {
 func (h Habit) Check() (int, string) {
 	diff := h.checkStreak()
 	if diff == 0 || diff == 1 {
-		return diff, fmt.Sprintf("You are currently on a %d-day streak for '%s'. Stick to it!\n", h.Streak, h.Name)
+		return diff, fmt.Sprintf("You're currently on a %d-day streak for '%s'. Stick to it!\n", h.Streak, h.Name)
 	}
 	return diff, fmt.Sprintf("It's been %d days since you did '%s'. It's ok, life happens. Get back on that horse today!\n", diff, h.Name)
 }
