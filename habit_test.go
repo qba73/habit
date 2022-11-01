@@ -22,7 +22,7 @@ func TestHabit_StartsNewActivityWithNameAndInitialDate(t *testing.T) {
 	}
 }
 
-func TestStartNewHabit_ConfiguresHabitAndReturnsCorrectMessage(t *testing.T) {
+func TestStart_ConfiguresValidHabit(t *testing.T) {
 	t.Parallel()
 	habitName := "jog"
 	h, err := habit.New(habitName)
@@ -43,7 +43,7 @@ func TestStartNewHabit_ConfiguresHabitAndReturnsCorrectMessage(t *testing.T) {
 
 }
 
-func TestHabit_DoesNotLogDuplicatedActivityOnTheSameDay(t *testing.T) {
+func TestLog_DoesNotDuplicateActivityOnTheSameDay(t *testing.T) {
 	t.Parallel()
 	h, err := habit.New("jog")
 	if err != nil {
@@ -77,16 +77,34 @@ func TestCheck_ReportsValidStreakLengthOnNotBrokenStreak(t *testing.T) {
 
 	h.Date = time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
 	want = 1
-	wantMessage := fmt.Sprintf("You're currently on a %d-day streak for '%s'. Stick to it!\n", want, h.Name)
 	got, msg := h.Check()
 	if want != got {
 		t.Errorf("want %d, got %d", want, got)
 	}
-
+	wantMessage := fmt.Sprintf("You're currently on a %d-day streak for '%s'. Stick to it!\n", want, h.Name)
 	if wantMessage != msg {
 		t.Error(cmp.Diff(wantMessage, msg))
 	}
+}
 
+func TestCheck_ReportsBrokenStreak(t *testing.T) {
+	t.Parallel()
+	h, err := habit.New("jog")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Setup date 5 days ago to simulate that the habit was logged 5 days ago.
+	h.Date = time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -5)
+
+	got, msg := h.Check()
+	wantDays := 5
+	if wantDays != got {
+		t.Errorf("want %d, got %d", wantDays, got)
+	}
+	wantMsg := fmt.Sprintf("It's been %d days since you did '%s'. It's ok, life happens. Get back on that horse today!\n", wantDays, h.Name)
+	if wantMsg != msg {
+		t.Error(cmp.Diff(wantMsg, msg))
+	}
 }
 
 func TestLog_RecordsActivityOnNextDayOnNotBrokenStreak(t *testing.T) {
@@ -109,11 +127,7 @@ func TestLog_RecordsActivityOnNextDayOnNotBrokenStreak(t *testing.T) {
 	}
 }
 
-func TestCheck_ReturnsValidMessageOnBrokenStreak(t *testing.T) {
-	t.Parallel()
-
-}
-func TestHabit_StartsNewActivityAfterBrokenStreak(t *testing.T) {
+func TestLog_StartsNewStreakAfterBrokenStreak(t *testing.T) {
 	t.Parallel()
 	h, err := habit.New("jog")
 	if err != nil {
@@ -122,16 +136,16 @@ func TestHabit_StartsNewActivityAfterBrokenStreak(t *testing.T) {
 	// Setup date 5 days ago to simulate that the habit was logged 5 days ago.
 	h.Date = time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -5)
 
-	got, _ := h.Check()
-	want := 5
+	want := 1
+	got, msg := h.Log()
 	if want != got {
 		t.Errorf("want %d, got %d", want, got)
 	}
 
-	want = 1
-	got, _ = h.Log()
-	if want != got {
-		t.Errorf("want %d, got %d", want, got)
+	wantDays := 5
+	wantMsg := fmt.Sprintf("You last did the habit '%s' %d days ago, so you're starting a new streak today. Good luck!\n", h.Name, wantDays)
+	if wantMsg != msg {
+		t.Error(cmp.Diff(wantMsg, msg))
 	}
 }
 
