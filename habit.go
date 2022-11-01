@@ -3,22 +3,24 @@ package habit
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"time"
 )
+
+type Store interface {
+	Save(h *Habit) error
+	Load() (*Habit, error)
+}
 
 type FileStore struct {
 	Path string
 }
 
-func (f FileStore) Save(h *Habit) error {
-	hb := Habit{
-		Name:   h.Name,
-		Date:   h.Date,
-		Streak: h.Streak,
-	}
-	d, err := json.Marshal(hb)
+func (f *FileStore) Save(h *Habit) error {
+	d, err := json.Marshal(h)
 	if err != nil {
 		return err
 	}
@@ -29,10 +31,13 @@ func (f FileStore) Save(h *Habit) error {
 	return nil
 }
 
-func (f FileStore) Load() (*Habit, error) {
+func (f *FileStore) Load() (*Habit, error) {
 	var h Habit
 	b, err := os.ReadFile(f.Path)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("habit store %v does not exist: %w", f.Path, err)
+		}
 		return nil, err
 	}
 	err = json.Unmarshal(b, &h)
@@ -65,7 +70,7 @@ func New(name string) (*Habit, error) {
 
 func (h *Habit) Start() string {
 	h.startNewStreak()
-	return fmt.Sprintf("Good luck with your new habit '%s'. Don't forget to do it tomorrow.", h.Name)
+	return fmt.Sprintf("Good luck with your new habit '%s'. Don't forget to do it tomorrow.\n", h.Name)
 }
 
 func (h *Habit) startNewStreak() {
@@ -109,37 +114,12 @@ func (h *Habit) Log() (int, string) {
 	return h.Streak, fmt.Sprintf("Nice work: you've done the habit '%s' for %d days in a row now. Keep it up!\n", h.Name, h.Streak)
 }
 
-func SaveToFile(path string, h *Habit) error {
-	hb := Habit{
-		Name:   h.Name,
-		Date:   h.Date,
-		Streak: h.Streak,
-	}
-	d, err := json.Marshal(hb)
-	if err != nil {
-		return err
-	}
-	err = os.WriteFile(path, d, 0644)
-	if err != nil {
-		return err
-	}
-	return nil
+func Save(s Store, h *Habit) error {
+	return s.Save(h)
 }
 
-func LoadFromFile(path string) (*Habit, error) {
-	if path == "" {
-		return nil, errors.New("missing path")
-	}
-	var h Habit
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(b, &h)
-	if err != nil {
-		return nil, err
-	}
-	return &h, nil
+func Load(s Store) (*Habit, error) {
+	return s.Load()
 }
 
 // habitDate truncates time to full days.
@@ -148,90 +128,57 @@ func habitDate(t time.Time) time.Time {
 }
 
 func RunCLI() {
-	fmt.Println("dummy cli")
-}
-
-/*
-func RunCLI() {
 	fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	fset.Parse(os.Args[1:])
+	args := fset.Args()
 
-	path, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Fprint(os.Stderr, err)
-		os.Exit(1)
+	store := FileStore{
+		Path: "habit.json",
 	}
 
-	args := fset.Args()
 	// No args, so check habit and the file
 	if len(args) == 0 {
-		h, err := LoadFromFile(storePath)
+		h, err := store.Load()
 		if errors.Is(err, fs.ErrNotExist) {
-			fset.Usage()
-			os.Exit(0)
+			fmt.Fprint(os.Stderr, "You are not tracking any habit yet.\n")
+			os.Exit(1)
 		}
-
+		_, msg := h.Check()
+		fmt.Fprint(os.Stdout, msg)
 		os.Exit(0)
 	}
 
+	// Start a new habit
 	habitName := args[0]
 
-	h, err := LoadFromFile(storePath)
-	if errors.Is(err, fs.ErrNotExist) {
-		// start new habit
-		h, err := New(habitName)
-		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			os.Exit(1)
-		}
-		b, err := NewBoard(h, WithOutput(os.Stdout))
-		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			os.Exit(1)
-		}
-		b.LogActivity()
-		err = SaveToFile(storePath, h)
-		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			os.Exit(1)
-		}
-		os.Exit(0)
-	}
+	h, err := store.Load()
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
-	}
-
-	if habitName != h.Name {
-		// start new habit
-		h, err := New(habitName)
-		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			os.Exit(1)
-		}
-		b, err := NewBoard(h, WithOutput(os.Stdout))
-		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			os.Exit(1)
-		}
-
-		b.LogActivity()
-
-		err = SaveToFile(storePath, h)
-		if err != nil {
-			os.Exit(1)
-		}
-		os.Exit(0)
-	}
-
-	b, err := NewBoard(h, WithOutput(os.Stdout))
-	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fset.Usage()
 		os.Exit(1)
 	}
+	if h.Name != habitName {
+		// Start new habit
+		h, err := New(habitName)
+		if err != nil {
+			fmt.Fprint(os.Stderr, err)
+			os.Exit(1)
+		}
+		msg := h.Start()
+		err = store.Save(h)
+		if err != nil {
+			fmt.Fprint(os.Stderr, err)
+			os.Exit(1)
+		}
+		fmt.Fprint(os.Stdout, msg)
+		os.Exit(0)
+	}
 
-	b.LogActivity()
-
-	SaveToFile(storePath, h)
+	_, msg := h.Log()
+	fmt.Fprint(os.Stdout, msg)
+	err = store.Save(h)
+	if err != nil {
+		fmt.Fprint(os.Stdout, err)
+		os.Exit(1)
+	}
 	os.Exit(0)
 }
-*/

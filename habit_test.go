@@ -9,7 +9,7 @@ import (
 	"github.com/qba73/habit"
 )
 
-func TestHabit_StartsNewActivityWithNameAndInitialDate(t *testing.T) {
+func TestNew_CreatesActivityWithNameAndInitialDate(t *testing.T) {
 	t.Parallel()
 	h, err := habit.New("jog")
 	if err != nil {
@@ -30,7 +30,7 @@ func TestStart_ConfiguresValidHabit(t *testing.T) {
 		t.Error(err)
 	}
 	got := h.Start()
-	want := fmt.Sprintf("Good luck with your new habit '%s'. Don't forget to do it tomorrow.", habitName)
+	want := fmt.Sprintf("Good luck with your new habit '%s'. Don't forget to do it tomorrow.\n", habitName)
 	if want != got {
 		t.Error(cmp.Diff(want, got))
 	}
@@ -149,16 +149,19 @@ func TestLog_StartsNewStreakAfterBrokenStreak(t *testing.T) {
 	}
 }
 
-func TestLoadHabitFromFile(t *testing.T) {
+func TestLoadHabitFromFileStore(t *testing.T) {
 	t.Parallel()
 	habitFilepath := "testdata/habit.json"
-	got, err := habit.LoadFromFile(habitFilepath)
+	store := habit.FileStore{
+		Path: habitFilepath,
+	}
+	got, err := habit.Load(&store)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := &habit.Habit{
 		Name:   "walk",
-		Date:   time.Date(2022, 07, 15, 00, 00, 00, 00, time.UTC),
+		Date:   time.Date(2022, 11, 01, 00, 00, 00, 00, time.UTC),
 		Streak: 1,
 	}
 	if !cmp.Equal(want, got) {
@@ -166,7 +169,7 @@ func TestLoadHabitFromFile(t *testing.T) {
 	}
 }
 
-func TestSaveHabitToFile(t *testing.T) {
+func TestSaveHabitToFileStore(t *testing.T) {
 	t.Parallel()
 	h, err := habit.New("run")
 	if err != nil {
@@ -175,11 +178,15 @@ func TestSaveHabitToFile(t *testing.T) {
 	h.Date = time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
 
 	path := t.TempDir() + "/habit.json"
-	err = habit.SaveToFile(path, h)
+	store := habit.FileStore{
+		Path: path,
+	}
+	err = habit.Save(&store, h)
 	if err != nil {
 		t.Fatal(err)
 	}
-	h2, err := habit.LoadFromFile(path)
+
+	h2, err := habit.Load(&store)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,24 +198,53 @@ func TestSaveHabitToFile(t *testing.T) {
 
 func TestHabit_SavesUpdatedHabitDataToFile(t *testing.T) {
 	t.Parallel()
+
 	habitFilepath := "testdata/habit.json"
-	h, err := habit.LoadFromFile(habitFilepath)
+	store := habit.FileStore{
+		Path: habitFilepath,
+	}
+	h, err := store.Load()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	h.Log()
+	store.Save(h)
 
-	path := t.TempDir() + "/path.json"
-
-	habit.SaveToFile(path, h)
-
-	h2, err := habit.LoadFromFile(path)
+	h2, err := habit.Load(&store)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !cmp.Equal(h2, h) {
 		t.Error(cmp.Diff(h2, h))
+	}
+}
+
+func TestFileStore_SavesAndLoadsHabit(t *testing.T) {
+	t.Parallel()
+
+	h, err := habit.New("walk")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	path := t.TempDir() + "/habit.json"
+	store := habit.FileStore{
+		Path: path,
+	}
+
+	err = store.Save(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h2, err := store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !cmp.Equal(h, h2) {
+		t.Error(cmp.Diff(h, h2))
 	}
 }
 
