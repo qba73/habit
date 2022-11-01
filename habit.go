@@ -6,19 +6,24 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"math"
 	"os"
 	"time"
 )
+
+var Now = time.Now
 
 type Store interface {
 	Save(h *Habit) error
 	Load() (*Habit, error)
 }
 
+// FileStore implements Store interface.
 type FileStore struct {
 	Path string
 }
 
+// Save saves the habit in a store.
 func (f *FileStore) Save(h *Habit) error {
 	d, err := json.Marshal(h)
 	if err != nil {
@@ -31,6 +36,7 @@ func (f *FileStore) Save(h *Habit) error {
 	return nil
 }
 
+// Load returns habit value or error.
 func (f *FileStore) Load() (*Habit, error) {
 	var h Habit
 	b, err := os.ReadFile(f.Path)
@@ -47,6 +53,7 @@ func (f *FileStore) Load() (*Habit, error) {
 	return &h, nil
 }
 
+// Habit represents habit metadata.
 type Habit struct {
 	Name string
 	// Date it's a date when habit activity was last recorded
@@ -56,35 +63,51 @@ type Habit struct {
 	Streak int
 }
 
+// New takes a name and returns a new habit
+// or error if the name is an empty string.
 func New(name string) (*Habit, error) {
 	if name == "" {
 		return nil, errors.New("nil habit name")
 	}
 	h := Habit{
 		Name:   name,
-		Date:   habitDate(time.Now()),
+		Date:   RoundDate(Now()),
 		Streak: 1,
 	}
 	return &h, nil
 }
 
+// Start logs new habit activity and starts a new streak.
 func (h *Habit) Start() string {
 	h.startNewStreak()
 	return fmt.Sprintf("Good luck with your new habit '%s'. Don't forget to do it tomorrow.\n", h.Name)
 }
 
 func (h *Habit) startNewStreak() {
-	h.Date = habitDate(time.Now())
+	h.Date = RoundDate(Now())
 	h.Streak = 1
 }
 
 func (h *Habit) continueStreak() {
-	h.Date = habitDate(time.Now())
+	h.Date = RoundDate(Now())
 	h.Streak += 1
 }
 
 func (h Habit) checkStreak() int {
-	return int(time.Since(h.Date).Hours() / 24)
+	return DayDiff(h.Date, Now())
+}
+
+// DayDiff takes two times and returns difference between them.
+// Returned value represent absolute number of days.
+func DayDiff(start, stop time.Time) int {
+	start = RoundDate(start)
+	stop = RoundDate(stop)
+	return int(math.Abs(stop.Sub(start).Hours()) / 24)
+}
+
+// RoundDate truncates time to full days.
+func RoundDate(t time.Time) time.Time {
+	return t.UTC().Truncate(24 * time.Hour)
 }
 
 // Check verifies if the streak is broken or not.
@@ -99,8 +122,8 @@ func (h Habit) Check() (int, string) {
 }
 
 // Log adds activity to an existing habit streak or
-// starts a new streak if the current one was broken.
-// It returns streak lenght and a message.
+// starts a new streak if the current one is broken.
+// Log returns streak lenght and a message.
 func (h *Habit) Log() (int, string) {
 	diff := h.checkStreak()
 	if diff == 0 {
@@ -114,17 +137,14 @@ func (h *Habit) Log() (int, string) {
 	return h.Streak, fmt.Sprintf("Nice work: you've done the habit '%s' for %d days in a row now. Keep it up!\n", h.Name, h.Streak)
 }
 
+// Save saves habit using provided store.
 func Save(s Store, h *Habit) error {
 	return s.Save(h)
 }
 
+// Load returns habit from the provided store.
 func Load(s Store) (*Habit, error) {
 	return s.Load()
-}
-
-// habitDate truncates time to full days.
-func habitDate(t time.Time) time.Time {
-	return t.UTC().Truncate(24 * time.Hour)
 }
 
 func RunCLI() {
