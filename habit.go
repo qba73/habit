@@ -18,9 +18,62 @@ type Store interface {
 	Load() (*Habit, error)
 }
 
+type option func(*FileStore) error
+
+func WithFilePath(path string) option {
+	return func(fs *FileStore) error {
+		if path == "" {
+			return errors.New("empty file path")
+		}
+		fs.Path = path
+		return nil
+	}
+}
+
 // FileStore implements Store interface.
 type FileStore struct {
 	Path string
+}
+
+// NewFileStore attempts to creates file storage '.habit.json'
+// in user's home dir. It creates the file '.habit.json' only if
+// the file is not present in the home dir.
+func NewFileStore(opts ...option) (*FileStore, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("creating file store: %w", err)
+	}
+
+	store := FileStore{
+		Path: home + "/.habit.json",
+	}
+	for _, opt := range opts {
+		if err := opt(&store); err != nil {
+			return nil, err
+		}
+	}
+
+	_, err = os.ReadFile(store.Path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			if err := createInitalStore(store.Path); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return &store, nil
+}
+
+func createInitalStore(path string) error {
+	h := Habit{Name: ""}
+	data, err := json.Marshal(h)
+	if err != nil {
+		return fmt.Errorf("creating initial store: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("creating initial store: %w", err)
+	}
+	return nil
 }
 
 // Save saves the habit in a store.
@@ -29,8 +82,7 @@ func (f *FileStore) Save(h *Habit) error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(f.Path, d, 0644)
-	if err != nil {
+	if err = os.WriteFile(f.Path, d, 0644); err != nil {
 		return err
 	}
 	return nil
@@ -53,7 +105,7 @@ func (f *FileStore) Load() (*Habit, error) {
 	return &h, nil
 }
 
-// Habit represents habit metadata.
+// Habit holds metadata for tracking the habit.
 type Habit struct {
 	Name string
 	// Date it's a date when habit activity was last recorded
@@ -93,8 +145,8 @@ func (h *Habit) continueStreak() {
 	h.Streak += 1
 }
 
-func (h Habit) checkStreak() int {
-	return DayDiff(h.Date, Now())
+func (h *Habit) checkStreak() int {
+	return DayDiff(h.Date, Now().UTC())
 }
 
 // DayDiff takes two times and returns difference between them.
@@ -113,7 +165,7 @@ func RoundDate(t time.Time) time.Time {
 // Check verifies if the streak is broken or not.
 // Returned value represents number of days since
 // the habit was logged.
-func (h Habit) Check() (int, string) {
+func (h *Habit) Check() (int, string) {
 	diff := h.checkStreak()
 	if diff == 0 || diff == 1 {
 		return diff, fmt.Sprintf("You're currently on a %d-day streak for '%s'. Stick to it!\n", h.Streak, h.Name)
@@ -137,31 +189,34 @@ func (h *Habit) Log() (int, string) {
 	return h.Streak, fmt.Sprintf("Nice work: you've done the habit '%s' for %d days in a row now. Keep it up!\n", h.Name, h.Streak)
 }
 
-// Save saves habit using provided store.
-func Save(s Store, h *Habit) error {
-	return s.Save(h)
-}
+// // Save saves habit using provided store.
+// func Save(s Store, h *Habit) error {
+// 	return s.Save(h)
+// }
 
-// Load returns habit from the provided store.
-func Load(s Store) (*Habit, error) {
-	return s.Load()
-}
+// // Load returns habit from the provided store.
+// func Load(s Store) (*Habit, error) {
+// 	return s.Load()
+// }
 
 func RunCLI() {
 	fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	fset.Parse(os.Args[1:])
 	args := fset.Args()
 
-	store := FileStore{
-		Path: "habit.json",
+	// Make sure default file storage is created.
+	store, err := NewFileStore()
+	if err != nil {
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(1)
 	}
 
-	// No args, so check habit and the file
+	// No args, so check habit
 	if len(args) == 0 {
 		h, err := store.Load()
-		if errors.Is(err, fs.ErrNotExist) {
-			fmt.Fprint(os.Stderr, "You are not tracking any habit yet.\n")
-			os.Exit(1)
+		if errors.Is(err, fs.ErrNotExist) || h.Name == "" {
+			fmt.Fprint(os.Stdout, "You are not tracking any habit yet.\n")
+			os.Exit(0)
 		}
 		_, msg := h.Check()
 		fmt.Fprint(os.Stdout, msg)
