@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"math"
 	"os"
@@ -54,11 +55,9 @@ func NewFileStore(opts ...option) (*FileStore, error) {
 	}
 
 	_, err = os.ReadFile(store.Path)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			if err := createInitalStore(store.Path); err != nil {
-				return nil, err
-			}
+	if errors.Is(err, fs.ErrNotExist) {
+		if err := createInitalStore(store.Path); err != nil {
+			return nil, err
 		}
 	}
 	return &store, nil
@@ -189,17 +188,7 @@ func (h *Habit) Log() (int, string) {
 	return h.Streak, fmt.Sprintf("Nice work: you've done the habit '%s' for %d days in a row now. Keep it up!\n", h.Name, h.Streak)
 }
 
-// // Save saves habit using provided store.
-// func Save(s Store, h *Habit) error {
-// 	return s.Save(h)
-// }
-
-// // Load returns habit from the provided store.
-// func Load(s Store) (*Habit, error) {
-// 	return s.Load()
-// }
-
-func RunCLI() {
+func RunCLI(wr, ew io.Writer) {
 	fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	fset.Parse(os.Args[1:])
 	args := fset.Args()
@@ -207,7 +196,7 @@ func RunCLI() {
 	// Make sure default file storage is created.
 	store, err := NewFileStore()
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprint(ew, err)
 		os.Exit(1)
 	}
 
@@ -215,7 +204,7 @@ func RunCLI() {
 	if len(args) == 0 {
 		h, err := store.Load()
 		if errors.Is(err, fs.ErrNotExist) || h.Name == "" {
-			fmt.Fprint(os.Stdout, "You are not tracking any habit yet.\n")
+			fmt.Fprint(wr, "You are not tracking any habit yet.\n")
 			os.Exit(0)
 		}
 		_, msg := h.Check()
@@ -228,31 +217,31 @@ func RunCLI() {
 
 	h, err := store.Load()
 	if err != nil {
-		fset.Usage()
+		fmt.Fprint(ew, err)
 		os.Exit(1)
 	}
 	if h.Name != habitName {
 		// Start new habit
 		h, err := New(habitName)
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprint(ew, err)
 			os.Exit(1)
 		}
 		msg := h.Start()
 		err = store.Save(h)
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprint(ew, err)
 			os.Exit(1)
 		}
-		fmt.Fprint(os.Stdout, msg)
+		fmt.Fprint(wr, msg)
 		os.Exit(0)
 	}
 
 	_, msg := h.Log()
-	fmt.Fprint(os.Stdout, msg)
+	fmt.Fprint(wr, msg)
 	err = store.Save(h)
 	if err != nil {
-		fmt.Fprint(os.Stdout, err)
+		fmt.Fprint(wr, err)
 		os.Exit(1)
 	}
 	os.Exit(0)
