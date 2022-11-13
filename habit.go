@@ -36,25 +36,32 @@ type FileStore struct {
 	Path string
 }
 
+func dataDir() string {
+	path, ok := os.LookupEnv("XDG_DATA_HOME")
+	if ok {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		panic("can't determine user's home dir")
+	}
+	return home + "/.local/share"
+}
+
 // NewFileStore attempts to creates file storage '.habit.json'
 // in user's home dir. It creates the file '.habit.json' only if
 // the file is not present in the home dir.
 func NewFileStore(opts ...option) (*FileStore, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("creating file store: %w", err)
-	}
-
+	path := dataDir()
 	store := FileStore{
-		Path: home + "/.habit.json",
+		Path: path + "/.habit.json",
 	}
 	for _, opt := range opts {
 		if err := opt(&store); err != nil {
 			return nil, err
 		}
 	}
-
-	_, err = os.ReadFile(store.Path)
+	_, err := os.ReadFile(store.Path)
 	if errors.Is(err, fs.ErrNotExist) {
 		if err := createInitalStore(store.Path); err != nil {
 			return nil, err
