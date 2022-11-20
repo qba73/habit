@@ -1,0 +1,15 @@
+# habctl creates initial file store on first invocation 
+env HOME=$TMPDIR
+exec habctl
+stdout 'You are not tracking any habit yet.\n'
+! stderr .
+exists $HOME/.local/share/habit.json
+
+# habctl starts tracking a new habit
+exec habctl jog
+stdout 'Good luck with your new habit ''jog''. Don''t forget to do it tomorrow.\n'
+! stderr .
+
+
+-- init.golden --
+{"Name":"","Date":"0001-01-01T00:00:00Z","Streak":0}

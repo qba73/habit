@@ -24,7 +24,7 @@ type option func(*FileStore) error
 func WithFilePath(path string) option {
 	return func(fs *FileStore) error {
 		if path == "" {
-			return errors.New("empty file path")
+			return errors.New("missing path")
 		}
 		fs.Path = path
 		return nil
@@ -34,6 +34,35 @@ func WithFilePath(path string) option {
 // FileStore implements Store interface.
 type FileStore struct {
 	Path string
+}
+
+// NewFileStore attempts to creates file storage '.habit.json'
+// in user's home dir. It creates the file '.habit.json' only if
+// the file is not present in the home dir.
+func NewFileStore(opts ...option) (*FileStore, error) {
+	path := dataDir()
+	err := os.MkdirAll(path, 0o700)
+	if err != nil && !errors.Is(err, fs.ErrExist) {
+		return nil, err
+	}
+
+	store := FileStore{
+		Path: path + "/" + "habit.json",
+	}
+
+	for _, opt := range opts {
+		if err := opt(&store); err != nil {
+			return nil, err
+		}
+	}
+
+	_, err = os.Stat(store.Path)
+	if errors.Is(err, fs.ErrNotExist) {
+		if err := createInitalStore(store.Path); err != nil {
+			return nil, err
+		}
+	}
+	return &store, nil
 }
 
 func dataDir() string {
@@ -48,35 +77,13 @@ func dataDir() string {
 	return home + "/.local/share"
 }
 
-// NewFileStore attempts to creates file storage '.habit.json'
-// in user's home dir. It creates the file '.habit.json' only if
-// the file is not present in the home dir.
-func NewFileStore(opts ...option) (*FileStore, error) {
-	path := dataDir()
-	store := FileStore{
-		Path: path + "/.habit.json",
-	}
-	for _, opt := range opts {
-		if err := opt(&store); err != nil {
-			return nil, err
-		}
-	}
-	_, err := os.ReadFile(store.Path)
-	if errors.Is(err, fs.ErrNotExist) {
-		if err := createInitalStore(store.Path); err != nil {
-			return nil, err
-		}
-	}
-	return &store, nil
-}
-
 func createInitalStore(path string) error {
 	h := Habit{Name: ""}
 	data, err := json.Marshal(h)
 	if err != nil {
-		return fmt.Errorf("creating initial store: %w", err)
+		return fmt.Errorf("marshaling data: %w", err)
 	}
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("creating initial store: %w", err)
 	}
 	return nil
@@ -195,7 +202,7 @@ func (h *Habit) Log() (int, string) {
 	return h.Streak, fmt.Sprintf("Nice work: you've done the habit '%s' for %d days in a row now. Keep it up!\n", h.Name, h.Streak)
 }
 
-func RunCLI(wr, ew io.Writer) {
+func runCLI(wr, ew io.Writer) int {
 	fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	fset.Parse(os.Args[1:])
 	args := fset.Args()
@@ -204,7 +211,7 @@ func RunCLI(wr, ew io.Writer) {
 	store, err := NewFileStore()
 	if err != nil {
 		fmt.Fprint(ew, err)
-		os.Exit(1)
+		return 1
 	}
 
 	// No args, so check habit
@@ -212,11 +219,11 @@ func RunCLI(wr, ew io.Writer) {
 		h, err := store.Load()
 		if errors.Is(err, fs.ErrNotExist) || h.Name == "" {
 			fmt.Fprint(wr, "You are not tracking any habit yet.\n")
-			os.Exit(0)
+			return 0
 		}
 		_, msg := h.Check()
 		fmt.Fprint(os.Stdout, msg)
-		os.Exit(0)
+		return 0
 	}
 
 	// Start a new habit
@@ -225,23 +232,23 @@ func RunCLI(wr, ew io.Writer) {
 	h, err := store.Load()
 	if err != nil {
 		fmt.Fprint(ew, err)
-		os.Exit(1)
+		return 1
 	}
 	if h.Name != habitName {
 		// Start new habit
 		h, err := New(habitName)
 		if err != nil {
 			fmt.Fprint(ew, err)
-			os.Exit(1)
+			return 1
 		}
 		msg := h.Start()
 		err = store.Save(h)
 		if err != nil {
 			fmt.Fprint(ew, err)
-			os.Exit(1)
+			return 1
 		}
 		fmt.Fprint(wr, msg)
-		os.Exit(0)
+		return 0
 	}
 
 	_, msg := h.Log()
@@ -249,7 +256,11 @@ func RunCLI(wr, ew io.Writer) {
 	err = store.Save(h)
 	if err != nil {
 		fmt.Fprint(wr, err)
-		os.Exit(1)
+		return 1
 	}
-	os.Exit(0)
+	return 0
+}
+
+func Main() int {
+	return runCLI(os.Stdout, os.Stderr)
 }

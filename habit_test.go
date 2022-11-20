@@ -2,11 +2,13 @@ package habit_test
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/qba73/habit"
+	"github.com/rogpeppe/go-internal/testscript"
 )
 
 func TestDayDiff_CalculatesDurationInFullDaysBetweenDates(t *testing.T) {
@@ -426,14 +428,14 @@ func TestFileStore_SavesHabit(t *testing.T) {
 	}
 }
 
-// func TestMain(m *testing.M) {
-// 	testscript.RunMain(m, map[string]func() int{
-// 		"habit": func() int {
-// 			habit.RunCLI()
-// 			return 0
-// 		},
-// 	})
-// }
-// func TestScript(t *testing.T) {
-// 	testscript.Run(t, testscript.Params{Dir: "testdata/script"})
-// }
+func TestMain(m *testing.M) {
+	os.Exit(testscript.RunMain(m, map[string]func() int{
+		"habctl": habit.Main,
+	}))
+}
+
+func TestHabit(t *testing.T) {
+	testscript.Run(t, testscript.Params{
+		Dir: "testdata/script",
+	})
+}

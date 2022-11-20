@@ -1,9 +1,30 @@
-# Should print streak
-env HOME=$TMPDIR
-exec habit
-cmp stdout file.golden
+# Filestore does not exist before running habit command 
+#env HOME=$TMPDIR
 
--- file.golden --
-You're currently on a 3-day streak for 'jog'. Stick to it!
--- $HOME/.habit.json --
-{"name":"walk", "streak":3}
+#! exec cat $HOME/.local/share/habit.json
+#stderr 'No such file or directory\n'
+#! stdout .
+
+# Run habit first time with no args
+#env HOME=$TMPDIR
+#exec habit
+
+
+
+#cmpenv cat $HOME/.local/share/habit.json $HOME/.local/share/habit.json 
+
+
+#exec cat $HOME/.local/share/habit.json
+#cmp stdout initial.json
+
+# Should print streak
+#env HOME=$TMPDIR
+#exec habit
+#cmp stdout file.golden
+
+#-- $HOME/.local/share/habit.json --
+#{"name":""}
+#-- initial.json --
+#{"name":""}
+#-- file.golden --
+#You're currently on a 3-day streak for 'jog'. Stick to it!

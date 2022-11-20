@@ -7,5 +7,5 @@ import (
 )
 
 func main() {
-	habit.RunCLI(os.Stdout, os.Stderr)
+	os.Exit(habit.Main())
 }
