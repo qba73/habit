@@ -1,8 +1,10 @@
 package habit_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -371,9 +373,9 @@ func TestNewFileStore_CreatesStoreOnValidPathInput(t *testing.T) {
 }
 
 func TestFileStore_LoadsHabit(t *testing.T) {
-	habitFilepath := "testdata/habit.json"
-
-	store, err := habit.NewFileStore(habit.WithFilePath(habitFilepath))
+	store, err := habit.NewFileStore(
+		habit.WithFilePath("testdata/habit.json"),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -436,6 +438,44 @@ func TestMain(m *testing.M) {
 
 func TestHabit(t *testing.T) {
 	testscript.Run(t, testscript.Params{
-		Dir: "testdata/script",
+		Dir:  "testdata/script",
+		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){"date": cmdDate},
 	})
+}
+
+func cmdDate(ts *testscript.TestScript, neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! date")
+	}
+	if len(args) != 2 {
+		ts.Fatalf("usage: date filepath -1")
+	}
+	// Verify 2nd arg
+	dayShift, err := strconv.Atoi(args[1])
+	if err != nil {
+		ts.Fatalf("expected int of max value -1")
+	}
+	// Verify 1st arg
+	filepath := args[0]
+	data, err := os.ReadFile(filepath)
+	if err != nil {
+		ts.Fatalf("reading file: %s, %v", filepath, err)
+	}
+
+	var h habit.Habit
+	err = json.Unmarshal(data, &h)
+	if err != nil {
+		ts.Fatalf("unmarshaling data: %v", err)
+	}
+
+	newDate := habit.RoundDate(h.Date.AddDate(0, 0, dayShift))
+	h.Date = newDate
+
+	d, err := json.Marshal(h)
+	if err != nil {
+		ts.Fatalf("marshaling updated habit date")
+	}
+	if err = os.WriteFile(filepath, d, 0644); err != nil {
+		ts.Fatalf("saving updated filestore: %s, %v", filepath, err)
+	}
 }

@@ -78,7 +78,11 @@ func dataDir() string {
 }
 
 func createInitalStore(path string) error {
-	h := Habit{Name: ""}
+	h := Habit{
+		Name:   "",
+		Date:   RoundDate(Now()),
+		Streak: 0,
+	}
 	data, err := json.Marshal(h)
 	if err != nil {
 		return fmt.Errorf("marshaling data: %w", err)

@@ -9,7 +9,22 @@ exists $HOME/.local/share/habit.json
 exec habctl jog
 stdout 'Good luck with your new habit ''jog''. Don''t forget to do it tomorrow.\n'
 ! stderr .
+exec habctl
+stdout 'You''re currently on a 1-day streak for ''jog''. Stick to it!\n'
+! stderr .
+exec cat $HOME/.local/share/habit.json
 
+# habctl log habit on not broken streak
+date $HOME/.local/share/habit.json -1
+exec habctl jog
+stdout 'Nice work: you''ve done the habit ''jog'' for 2 days in a row now. Keep it up!'
+! stderr .
+
+# habctl log habit on broken streak
+date $HOME/.local/share/habit.json -3
+exec habctl jog
+stdout 'You last did the habit ''jog'' 3 days ago, so you''re starting a new streak today. Good luck!'
+! stderr .
 
 -- init.golden --
 {"Name":"","Date":"0001-01-01T00:00:00Z","Streak":0}
