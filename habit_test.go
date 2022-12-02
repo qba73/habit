@@ -1,79 +1,13 @@
 package habit_test
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"strconv"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/qba73/habit"
-	"github.com/rogpeppe/go-internal/testscript"
 )
-
-func TestDayDiff_CalculatesDurationInFullDaysBetweenDates(t *testing.T) {
-	t.Parallel()
-
-	tt := []struct {
-		name  string
-		start string
-		end   string
-		want  int
-	}{
-		{
-			name:  "with twenty day gap",
-			start: "2022-10-01T23:00:00Z",
-			end:   "2022-10-21T01:00:00Z",
-			want:  20,
-		},
-		{
-			name:  "with three day gap",
-			start: "2022-10-31T23:00:00Z",
-			end:   "2022-11-03T01:00:00Z",
-			want:  3,
-		},
-		{
-			name:  "with one day gap",
-			start: "2022-10-31T23:00:00Z",
-			end:   "2022-11-01T01:00:00Z",
-			want:  1,
-		},
-		{
-			name:  "wth no gap between dates",
-			start: "2022-10-30T01:00:00Z",
-			end:   "2022-10-30T14:00:00Z",
-			want:  0,
-		},
-		{
-			name:  "with multiple days gap",
-			start: "2022-09-20T23:00:00Z",
-			end:   "2022-11-30T01:00:00Z",
-			want:  71,
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			startTime, err := time.Parse(time.RFC3339, tc.start)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			stopTime, err := time.Parse(time.RFC3339, tc.end)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			got := habit.DayDiff(startTime, stopTime)
-			if tc.want != got {
-				t.Error(cmp.Diff(tc.want, got))
-			}
-		})
-	}
-
-}
 
 func TestRoundDate_RoundsHabitLogTimeToAFullDay(t *testing.T) {
 	t.Parallel()
@@ -93,7 +27,7 @@ func TestRoundDate_RoundsHabitLogTimeToAFullDay(t *testing.T) {
 	}
 }
 
-func TestNew_CreatesActivityWithNameAndInitialDate(t *testing.T) {
+func TestNew_CreatesNewHabit(t *testing.T) {
 	testTime, err := time.Parse(time.RFC3339, "2022-11-01T02:00:00Z")
 	if err != nil {
 		t.Fatal(err)
@@ -102,22 +36,28 @@ func TestNew_CreatesActivityWithNameAndInitialDate(t *testing.T) {
 		return testTime
 	}
 
-	h, err := habit.New("jog")
-	if err != nil {
-		t.Fatal(err)
-	}
-	want, err := time.Parse(time.RFC3339, "2022-11-01T00:00:00Z")
+	got, err := habit.New("jog")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	got := h.Date
-	if !cmp.Equal(want.UTC(), got) {
-		t.Errorf(cmp.Diff(want, got))
+	date, err := time.Parse(time.RFC3339, "2022-11-01T00:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := &habit.Habit{
+		Name:   "jog",
+		Date:   date,
+		Streak: 1,
+	}
+
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
 
-func TestStart_ConfiguresValidHabit(t *testing.T) {
+func TestStart_StartsHabit(t *testing.T) {
 	testTime, err := time.Parse(time.RFC3339, "2022-10-01T01:00:00Z")
 	if err != nil {
 		t.Fatal(err)
@@ -127,23 +67,29 @@ func TestStart_ConfiguresValidHabit(t *testing.T) {
 	}
 
 	habitName := "jog"
-	h, err := habit.New(habitName)
+	gotHabit, err := habit.New(habitName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := h.Start()
+	got := gotHabit.Start()
 	want := fmt.Sprintf("Good luck with your new habit '%s'. Don't forget to do it tomorrow.\n", habitName)
 	if want != got {
 		t.Error(cmp.Diff(want, got))
 	}
 
-	gotDate := h.Date
-	wantDate, err := time.Parse(time.RFC3339, "2022-10-01T00:00:00Z")
+	date, err := time.Parse(time.RFC3339, "2022-10-01T00:00:00Z")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !cmp.Equal(wantDate.UTC(), gotDate.UTC()) {
-		t.Error(cmp.Diff(want, got))
+
+	wantHabit := &habit.Habit{
+		Name:   habitName,
+		Date:   date,
+		Streak: 1,
+	}
+
+	if !cmp.Equal(wantHabit, gotHabit) {
+		t.Error(cmp.Diff(wantHabit, gotHabit))
 	}
 }
 
@@ -156,7 +102,7 @@ func TestLog_DoesNotDuplicateActivityOnTheSameDay(t *testing.T) {
 		return testTime
 	}
 
-	h, err := habit.New("jog")
+	gotHabit, err := habit.New("jog")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,13 +115,14 @@ func TestLog_DoesNotDuplicateActivityOnTheSameDay(t *testing.T) {
 		return testTime
 	}
 
-	days, msg := h.Log()
+	days, msg := gotHabit.Log()
 
 	wantDays := 1
-	wantMsg := ""
 	if !cmp.Equal(wantDays, days) {
 		t.Error(cmp.Diff(wantDays, days))
 	}
+
+	wantMsg := ""
 	if !cmp.Equal(wantMsg, msg) {
 		t.Error(cmp.Diff(wantMsg, msg))
 	}
@@ -185,15 +132,14 @@ func TestLog_DoesNotDuplicateActivityOnTheSameDay(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	gotDate := h.Date
-	if wantDate != gotDate {
-		t.Fatalf("want %v, got %v", wantDate, gotDate)
+	wantHabit := &habit.Habit{
+		Name:   "jog",
+		Date:   wantDate,
+		Streak: 1,
 	}
 
-	wantStreak := 1
-	gotStreak := h.Streak
-	if wantStreak != gotStreak {
-		t.Errorf("want %d, got %d", wantStreak, gotStreak)
+	if !cmp.Equal(wantHabit, gotHabit) {
+		t.Error(cmp.Diff(wantHabit, gotHabit))
 	}
 }
 
@@ -250,20 +196,31 @@ func TestCheck_ReportsBrokenStreak(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	checkTime, err := time.Parse(time.RFC3339, "2022-10-30T01:00:00Z")
-	if err != nil {
-		t.Fatal(err)
+	tt := []struct {
+		checkTime   string
+		wantDayDiff int
+	}{
+		{checkTime: "2022-10-30T01:00:00Z", wantDayDiff: 3},
+		{checkTime: "2022-01-31T05:00:00Z", wantDayDiff: 269},
+		{checkTime: "2022-11-28T15:00:00Z", wantDayDiff: 32},
 	}
-	h.Date = checkTime
 
-	got, msg := h.Check()
-	wantDays := 3
-	if wantDays != got {
-		t.Errorf("want %d, got %d", wantDays, got)
-	}
-	wantMsg := fmt.Sprintf("It's been %d days since you did '%s'. It's ok, life happens. Get back on that horse today!\n", wantDays, h.Name)
-	if wantMsg != msg {
-		t.Error(cmp.Diff(wantMsg, msg))
+	for _, tc := range tt {
+		checkTime, err := time.Parse(time.RFC3339, tc.checkTime)
+		if err != nil {
+			t.Fatal(err)
+		}
+		h.Date = checkTime
+
+		got, msg := h.Check()
+		wantDays := tc.wantDayDiff
+		if wantDays != got {
+			t.Errorf("want %d, got %d", tc.wantDayDiff, got)
+		}
+		wantMsg := fmt.Sprintf("It's been %d days since you did '%s'. It's ok, life happens. Get back on that horse today!\n", tc.wantDayDiff, h.Name)
+		if wantMsg != msg {
+			t.Error(cmp.Diff(wantMsg, msg))
+		}
 	}
 }
 
@@ -336,146 +293,197 @@ func TestLog_StartsNewStreakAfterBrokenStreak(t *testing.T) {
 	}
 }
 
-func TestNewFileStore_CreatesStoreOnValidPathInput(t *testing.T) {
-	habitFilepath := t.TempDir() + "/habit-initial.json"
-	store, err := habit.NewFileStore(habit.WithFilePath(habitFilepath))
-	if err != nil {
-		t.Fatal(err)
-	}
+// func TestHabits_AddHabit(t *testing.T) {
+// 	testTime, err := time.Parse(time.RFC3339, "2022-09-01T03:00:00Z")
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	habit.Now = func() time.Time {
+// 		return testTime
+// 	}
 
-	testTime, err := time.Parse(time.RFC3339, "2022-09-01T03:00:00Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-	habit.Now = func() time.Time {
-		return testTime
-	}
+// 	h, err := habit.New("walk")
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	h.Start()
 
-	h, err := habit.New("jog")
-	if err != nil {
-		t.Fatal(err)
-	}
-	h.Start()
+// 	store := habit.Habits{}
+// 	store.Add(*h)
 
-	err = store.Save(h)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	got := store.Read("walk")
 
-	h2, err := store.Load()
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	if !cmp.Equal(want, got) {
+// 		t.Error(cmp.Diff(want, got))
+// 	}
+// }
 
-	if !cmp.Equal(h2, h) {
-		t.Error(cmp.Diff(h2, h))
-	}
-}
+// func TestHabits_ListAllTrackedHabits(t *testing.T) {
 
-func TestFileStore_LoadsHabit(t *testing.T) {
-	store, err := habit.NewFileStore(
-		habit.WithFilePath("testdata/habit.json"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+// }
 
-	got, err := store.Load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := &habit.Habit{
-		Name:   "walk",
-		Date:   time.Date(2022, 10, 03, 00, 00, 00, 00, time.UTC),
-		Streak: 1,
-	}
-	if !cmp.Equal(want, got) {
-		t.Error(cmp.Diff(want, got))
-	}
-}
+//
+//}
 
-func TestFileStore_SavesHabit(t *testing.T) {
-	testTime, err := time.Parse(time.RFC3339, "2022-09-01T03:00:00Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-	habit.Now = func() time.Time {
-		return testTime
-	}
+// func TestFileStore_LoadsHabit(t *testing.T) {
+// 	store, err := habit.NewFileStore(
+// 		habit.WithFilePath("testdata/habit.json"),
+// 	)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	h, err := habit.New("run")
-	if err != nil {
-		t.Fatal(err)
-	}
-	h.Start()
+// 	got, err := store.Load("walk")
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	want := &habit.Habit{
+// 		Name:   "walk",
+// 		Date:   time.Date(2022, 10, 03, 00, 00, 00, 00, time.UTC),
+// 		Streak: 1,
+// 	}
+// 	if !cmp.Equal(want, got) {
+// 		t.Error(cmp.Diff(want, got))
+// 	}
+// }
 
-	path := t.TempDir() + "/habit.json"
+// func TestFileStore_SavesHabit(t *testing.T) {
+// 	testTime, err := time.Parse(time.RFC3339, "2022-09-01T03:00:00Z")
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	habit.Now = func() time.Time {
+// 		return testTime
+// 	}
 
-	store, err := habit.NewFileStore(habit.WithFilePath(path))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = store.Save(h)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	h, err := habit.New("run")
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	h.Start()
 
-	h2, err := store.Load()
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	path := t.TempDir() + "/habit.json"
 
-	if !cmp.Equal(h, h2) {
-		t.Errorf("want %+v, got %+v", h, h2)
-	}
-}
+// 	store, err := habit.NewFileStore(habit.WithFilePath(path))
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	err = store.Save(*h)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-func TestMain(m *testing.M) {
-	os.Exit(testscript.RunMain(m, map[string]func() int{
-		"habctl": habit.Main,
-	}))
-}
+// 	h2, err := store.Load("run")
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-func TestHabit(t *testing.T) {
-	testscript.Run(t, testscript.Params{
-		Dir:  "testdata/script",
-		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){"date": cmdDate},
-	})
-}
+// 	if !cmp.Equal(h, h2) {
+// 		t.Errorf("want %+v, got %+v", h, h2)
+// 	}
+// }
 
-func cmdDate(ts *testscript.TestScript, neg bool, args []string) {
-	if neg {
-		ts.Fatalf("unsupported: ! date")
-	}
-	if len(args) != 2 {
-		ts.Fatalf("usage: date filepath -1")
-	}
-	// Verify 2nd arg
-	dayShift, err := strconv.Atoi(args[1])
-	if err != nil {
-		ts.Fatalf("expected int of max value -1")
-	}
-	// Verify 1st arg
-	filepath := args[0]
-	data, err := os.ReadFile(filepath)
-	if err != nil {
-		ts.Fatalf("reading file: %s, %v", filepath, err)
-	}
+// func TestFileStore_ListsAllTrackedHabits(t *testing.T) {
+// 	path := "testdata/habits.json"
+// 	store, err := habit.NewFileStore(habit.WithFilePath(path))
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	got, err := store.List()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	var h habit.Habit
-	err = json.Unmarshal(data, &h)
-	if err != nil {
-		ts.Fatalf("unmarshaling data: %v", err)
-	}
+// 	want := []habit.Habit{
+// 		{Name: "walk", Date: time.Date(2022, 10, 03, 00, 00, 00, 00, time.UTC), Streak: 1},
+// 		{Name: "jog", Date: time.Date(2022, 10, 01, 00, 00, 00, 00, time.UTC), Streak: 2},
+// 		{Name: "read", Date: time.Date(2022, 10, 23, 00, 00, 00, 00, time.UTC), Streak: 3},
+// 	}
 
-	newDate := habit.RoundDate(h.Date.AddDate(0, 0, dayShift))
-	h.Date = newDate
+// 	if !cmp.Equal(want, got) {
+// 		t.Error(want, got)
+// 	}
+// }
 
-	d, err := json.Marshal(h)
-	if err != nil {
-		ts.Fatalf("marshaling updated habit date")
-	}
-	if err = os.WriteFile(filepath, d, 0644); err != nil {
-		ts.Fatalf("saving updated filestore: %s, %v", filepath, err)
-	}
-}
+// func TestFileStore_LoadHabitErrorsOnNotExistingHabit(t *testing.T) {
+// 	t.Parallel()
+
+// 	path := "testdata/habits.json"
+// 	store, err := habit.NewFileStore(habit.WithFilePath(path))
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	_, err = store.Load("skate")
+// 	if err == nil {
+// 		t.Fatal("want error, got nil")
+// 	}
+// }
+
+// func TestFileStore_LoadExistingHabit(t *testing.T) {
+// 	t.Parallel()
+
+// 	path := "testdata/habits.json"
+// 	store, err := habit.NewFileStore(habit.WithFilePath(path))
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	got, err := store.Load("jog")
+// 	if err != nil {
+// 		t.Fatal()
+// 	}
+// 	want := &habit.Habit{Name: "jog", Date: time.Date(2022, 10, 01, 00, 00, 00, 00, time.UTC), Streak: 2}
+// 	if !cmp.Equal(want, got) {
+// 		t.Error(cmp.Diff(want, got))
+// 	}
+// }
+
+// func TestMain(m *testing.M) {
+// 	os.Exit(testscript.RunMain(m, map[string]func() int{
+// 		"habctl": habit.Main,
+// 	}))
+// }
+
+// func TestHabit(t *testing.T) {
+// 	testscript.Run(t, testscript.Params{
+// 		Dir:  "testdata/script",
+// 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){"date": cmdDate},
+// 	})
+// }
+
+// func cmdDate(ts *testscript.TestScript, neg bool, args []string) {
+// 	if neg {
+// 		ts.Fatalf("unsupported: ! date")
+// 	}
+// 	if len(args) != 2 {
+// 		ts.Fatalf("usage: date filepath -1")
+// 	}
+// 	// Verify 2nd arg
+// 	dayShift, err := strconv.Atoi(args[1])
+// 	if err != nil {
+// 		ts.Fatalf("expected int of max value -1")
+// 	}
+// 	// Verify 1st arg
+// 	filepath := args[0]
+// 	data, err := os.ReadFile(filepath)
+// 	if err != nil {
+// 		ts.Fatalf("reading file: %s, %v", filepath, err)
+// 	}
+
+// 	var h habit.Habit
+// 	err = json.Unmarshal(data, &h)
+// 	if err != nil {
+// 		ts.Fatalf("unmarshaling data: %v", err)
+// 	}
+
+// 	newDate := habit.RoundDate(h.Date.AddDate(0, 0, dayShift))
+// 	h.Date = newDate
+
+// d, err := json.Marshal(h)
+//
+//	if err != nil {
+//		ts.Fatalf("marshaling updated habit date")
+//	}
+//
+//	if err = os.WriteFile(filepath, d, 0644); err != nil {
+//		ts.Fatalf("saving updated filestore: %s, %v", filepath, err)
+//	}
