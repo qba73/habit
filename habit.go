@@ -3,9 +3,7 @@ package habit
 import (
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
-	"io"
 	"io/fs"
 	"math"
 	"os"
@@ -35,8 +33,7 @@ func WithFilePath(path string) option {
 // FileStore implements Store interface.
 type FileStore struct {
 	Path    string
-	Content Habits
-	Writer  io.Writer
+	Content []byte
 }
 
 // NewFileStore attempts to creates file storage '.habit.json'
@@ -82,7 +79,7 @@ func dataDir() string {
 
 func createInitalStore(path string) error {
 	habits := Habits{
-		Content: map[string]Habit{"": {Name: ""}},
+		Collection: map[string]Habit{"": {Name: ""}},
 	}
 	data, err := habits.MarshalJSON()
 	if err != nil {
@@ -94,22 +91,28 @@ func createInitalStore(path string) error {
 	return nil
 }
 
-// Save saves the habit in a store.
+// // Save saves the habit in a store.
 func (f *FileStore) Save(h Habit) error {
-	f.Content.Content[h.Name] = h
-
-	d, err := f.Content.MarshalJSON()
+	s, err := f.open()
 	if err != nil {
 		return err
 	}
-	if err = os.WriteFile(f.Path, d, 0644); err != nil {
+	habits := NewHabits()
+	if err := habits.UnmarshalJSON(s); err != nil {
+		return err
+	}
+	habits.Add(h)
+	data, err := habits.MarshalJSON()
+	if err != nil {
+		return err
+	}
+	if err := f.save(data); err != nil {
 		return err
 	}
 	return nil
 }
 
-// Load returns habit value or error.
-func (f *FileStore) Load(name string) (*Habit, error) {
+func (f *FileStore) open() ([]byte, error) {
 	b, err := os.ReadFile(f.Path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -117,69 +120,103 @@ func (f *FileStore) Load(name string) (*Habit, error) {
 		}
 		return nil, err
 	}
+	return b, nil
+}
 
-	f.Content.UnmarshalJSON(b)
+func (f *FileStore) save(data []byte) error {
+	if err := os.WriteFile(f.Path, data, 0o600); err != nil {
+		return fmt.Errorf("saving data to store: %s, %w", f.Path, err)
+	}
+	return nil
+}
+
+// Load returns habit value or error.
+func (f *FileStore) Load(name string) (Habit, error) {
+	b, err := os.ReadFile(f.Path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return Habit{}, fmt.Errorf("habit store %v does not exist: %w", f.Path, err)
+		}
+		return Habit{}, err
+	}
 
 	var hx Habits
 	err = json.Unmarshal(b, &hx)
 	if err != nil {
-		return nil, err
+		return Habit{}, err
 	}
 
-	for _, h := range hx.Content {
-		if h.Name == name {
-			return &h, nil
-		}
+	h, ok := hx.Collection[name]
+	if !ok {
+		return Habit{}, fmt.Errorf("habit %s is not tracked", name)
 	}
-
-	return nil, fmt.Errorf("habit %s is not tracked", name)
+	return h, nil
 }
 
-func (f *FileStore) List() ([]Habit, error) {
+func (f *FileStore) List() (Habits, error) {
 	b, err := os.ReadFile(f.Path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return nil, fmt.Errorf("habit store %s does not exist: %w", f.Path, err)
+			return Habits{}, fmt.Errorf("habit store %s does not exist: %w", f.Path, err)
 		}
-		return nil, err
+		return Habits{}, err
 	}
-	var hx []Habit
+	var hx Habits
 	if err := json.Unmarshal(b, &hx); err != nil {
-		return nil, err
+		return Habits{}, err
 	}
 	return hx, nil
 }
 
+// ==============================================================================
+// Habit Memory Store
+// ==============================================================================
+
 // Habits holds a collection of habits.
 type Habits struct {
-	Content map[string]Habit
+	Collection map[string]Habit
+}
+
+func NewHabits() *Habits {
+	return &Habits{
+		Collection: map[string]Habit{},
+	}
 }
 
 // List returns a list of habits.
 func (hx *Habits) List() map[string]Habit {
-	return hx.Content
+	return hx.Collection
 }
 
-func (hx *Habits) Read(name string) Habit {
-	h, ok := hx.Content[name]
+// Read retrieves habit from the collection.
+func (hx *Habits) Read(name string) (Habit, bool) {
+	h, ok := hx.Collection[name]
 	if !ok {
-		return Habit{}
+		return Habit{}, false
 	}
-	return h
+	return h, true
 }
 
+// Add adds the habit to the collection of tracked habits.
 func (hx *Habits) Add(h Habit) {
-	hx.Content[h.Name] = h
+	hx.Collection[h.Name] = h
 }
 
+// Remove removes the habit from collection of tracked habits.
+func (hx *Habits) Remove(name string) {
+	delete(hx.Collection, name)
+}
+
+// MarshalJSON mashals the collection of tracked habits.
 func (hx *Habits) MarshalJSON() ([]byte, error) {
-	if len(hx.Content) == 0 {
+	if len(hx.Collection) == 0 {
 		return []byte("null"), nil
 	}
 	type h Habits
 	return json.Marshal(h(*hx))
 }
 
+// UnmarshalJSON unmarshals habits into a collection of tracked habits.
 func (hx *Habits) UnmarshalJSON(b []byte) error {
 	if string(b) == "null" {
 		*hx = Habits{}
@@ -194,6 +231,10 @@ func (hx *Habits) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// ==============================================================================
+// Single Habit
+// ==============================================================================
+
 // Habit holds metadata for tracking the habit.
 type Habit struct {
 	Name string
@@ -206,16 +247,16 @@ type Habit struct {
 
 // New takes a name and returns a new habit
 // or error if the name is an empty string.
-func New(name string) (*Habit, error) {
+func New(name string) (Habit, error) {
 	if name == "" {
-		return nil, errors.New("missing habit name")
+		return Habit{}, errors.New("missing habit name")
 	}
 	h := Habit{
 		Name:   name,
-		Date:   RoundDate(Now()),
+		Date:   RoundDateToDay(Now()),
 		Streak: 1,
 	}
-	return &h, nil
+	return h, nil
 }
 
 // Start logs new habit activity and starts a new streak.
@@ -230,15 +271,11 @@ func (h *Habit) startNewStreak() {
 }
 
 func (h *Habit) setDay(t time.Time) {
-	h.Date = h.roundDateToDay(t)
+	h.Date = RoundDateToDay(t)
 }
 
 func (h *Habit) resetStreak() {
 	h.Streak = 1
-}
-
-func (h *Habit) roundDateToDay(t time.Time) time.Time {
-	return t.UTC().Truncate(24 * time.Hour)
 }
 
 func (h *Habit) incStreak() {
@@ -262,17 +299,19 @@ func (h *Habit) Check() (int, string) {
 }
 
 func (h *Habit) checkStreak() int {
-	return h.dayDiff(h.Date, Now().UTC())
+	return DayDiff(h.Date, Now().UTC())
 }
 
-func (h *Habit) dayDiff(start, stop time.Time) int {
-	start = h.roundDateToDay(start)
-	stop = h.roundDateToDay(stop)
+// DayDiff takes two time obj and returns
+// diff between them in days.
+func DayDiff(start, stop time.Time) int {
+	start = RoundDateToDay(start)
+	stop = RoundDateToDay(stop)
 	return int(math.Abs(stop.Sub(start).Hours()) / 24)
 }
 
-// RoundDate truncates time to full days.
-func RoundDate(t time.Time) time.Time {
+// RoundDateToDay truncates time to 24h periods (days).
+func RoundDateToDay(t time.Time) time.Time {
 	return t.UTC().Truncate(24 * time.Hour)
 }
 
@@ -292,67 +331,67 @@ func (h *Habit) Log() (int, string) {
 	return h.Streak, fmt.Sprintf("Nice work: you've done the habit '%s' for %d days in a row now. Keep it up!\n", h.Name, h.Streak)
 }
 
-func runCLI(wr, ew io.Writer) int {
-	fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	fset.Parse(os.Args[1:])
-	args := fset.Args()
+// func runCLI(wr, ew io.Writer) int {
+// 	fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+// 	fset.Parse(os.Args[1:])
+// 	args := fset.Args()
 
-	// Make sure default file storage is created.
-	store, err := NewFileStore()
-	if err != nil {
-		fmt.Fprint(ew, err)
-		return 1
-	}
+// 	// Make sure default file storage is created.
+// 	store, err := NewFileStore()
+// 	if err != nil {
+// 		fmt.Fprint(ew, err)
+// 		return 1
+// 	}
 
-	// No args, so check habit
-	if len(args) == 0 {
-		habits, err := store.List()
-		if errors.Is(err, fs.ErrNotExist) || len(habits) == 0 {
-			fmt.Fprint(wr, "You are not tracking any habit yet.\n")
-			return 0
-		}
-		for _, h := range habits {
-			_, msg := h.Check()
-			fmt.Fprint(os.Stdout, msg)
-		}
-		return 0
-	}
+// 	// No args, so check habit
+// 	if len(args) == 0 {
+// 		habits, err := store.List()
+// 		if errors.Is(err, fs.ErrNotExist) || len(habits) == 0 {
+// 			fmt.Fprint(wr, "You are not tracking any habit yet.\n")
+// 			return 0
+// 		}
+// 		for _, h := range habits {
+// 			_, msg := h.Check()
+// 			fmt.Fprint(os.Stdout, msg)
+// 		}
+// 		return 0
+// 	}
 
-	// Start a new habit
-	habitName := args[0]
+// 	// Start a new habit
+// 	habitName := args[0]
 
-	h, err := store.Load(habitName)
-	if err != nil {
-		fmt.Fprint(ew, err)
-		return 1
-	}
-	if h.Name != habitName {
-		// Start new habit
-		h, err := New(habitName)
-		if err != nil {
-			fmt.Fprint(ew, err)
-			return 1
-		}
-		msg := h.Start()
-		err = store.Save(*h)
-		if err != nil {
-			fmt.Fprint(ew, err)
-			return 1
-		}
-		fmt.Fprint(wr, msg)
-		return 0
-	}
+// 	h, err := store.Load(habitName)
+// 	if err != nil {
+// 		fmt.Fprint(ew, err)
+// 		return 1
+// 	}
+// 	if h.Name != habitName {
+// 		// Start new habit
+// 		h, err := New(habitName)
+// 		if err != nil {
+// 			fmt.Fprint(ew, err)
+// 			return 1
+// 		}
+// 		msg := h.Start()
+// 		err = store.Save(*h)
+// 		if err != nil {
+// 			fmt.Fprint(ew, err)
+// 			return 1
+// 		}
+// 		fmt.Fprint(wr, msg)
+// 		return 0
+// 	}
 
-	_, msg := h.Log()
-	fmt.Fprint(wr, msg)
-	err = store.Save(*h)
-	if err != nil {
-		fmt.Fprint(wr, err)
-		return 1
-	}
-	return 0
-}
+// 	_, msg := h.Log()
+// 	fmt.Fprint(wr, msg)
+// 	err = store.Save(*h)
+// 	if err != nil {
+// 		fmt.Fprint(wr, err)
+// 		return 1
+// 	}
+// 	return 0
+// }
 
-func Main() int {
-	return runCLI(os.Stdout, os.Stderr)
-}
+// func Main() int {
+// 	return runCLI(os.Stdout, os.Stderr)
+// }

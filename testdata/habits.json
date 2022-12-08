@@ -1,0 +1,7 @@
+{
+    "collection":{
+    "walk": {"Name":"walk","Date":"2022-10-03T00:00:00Z","Streak":1},
+    "jog": {"Name":"jog","Date":"2022-10-01T00:00:00Z","Streak":2},
+    "read": {"Name":"read","Date":"2022-10-23T00:00:00Z","Streak":3}
+    }
+}
