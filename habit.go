@@ -132,11 +132,8 @@ func (f *FileStore) save(data []byte) error {
 
 // Load returns habit value or error.
 func (f *FileStore) Load(name string) (Habit, error) {
-	b, err := os.ReadFile(f.Path)
+	b, err := f.open()
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return Habit{}, fmt.Errorf("habit store %v does not exist: %w", f.Path, err)
-		}
 		return Habit{}, err
 	}
 
@@ -154,11 +151,8 @@ func (f *FileStore) Load(name string) (Habit, error) {
 }
 
 func (f *FileStore) List() (Habits, error) {
-	b, err := os.ReadFile(f.Path)
+	b, err := f.open()
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return Habits{}, fmt.Errorf("habit store %s does not exist: %w", f.Path, err)
-		}
 		return Habits{}, err
 	}
 	var hx Habits
