@@ -1,11 +1,13 @@
 package habit_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/qba73/habit"
 )
 
@@ -293,7 +295,154 @@ func TestLog_StartsNewStreakAfterBrokenStreak(t *testing.T) {
 	}
 }
 
-func TestHabits_AddNewHabits(t *testing.T) {
+func TestAddNewHabitToHabits(t *testing.T) {
+	t.Parallel()
+
+	habits := habit.Habits{}
+	h := habit.Habit{
+		Name:   "jog",
+		Streak: 1,
+	}
+	habits.Add(h)
+	want := habit.Habit{
+		Name:   "jog",
+		Streak: 1,
+	}
+	got := habits.Get("jog")
+	if !cmp.Equal(want, got) {
+		t.Error(want, got)
+	}
+}
+
+func TestRetrieveHabit(t *testing.T) {
+	t.Parallel()
+
+	habits := habit.Habits{
+		"Jog": {
+			Name:   "jog",
+			Streak: 1,
+		},
+	}
+	got := habits.Get("Jog")
+	want := habit.Habit{
+		Name:   "jog",
+		Streak: 1,
+	}
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestRetrieveAllHabits(t *testing.T) {
+	t.Parallel()
+
+	habits := habit.Habits{}
+
+	h1 := habit.Habit{
+		Name:   "jog",
+		Streak: 1,
+	}
+	h2 := habit.Habit{
+		Name:   "walk",
+		Streak: 2,
+	}
+	habits.Add(h1)
+	habits.Add(h2)
+	want := []habit.Habit{
+		{
+			Name:   "jog",
+			Streak: 1,
+		},
+		{
+			Name:   "walk",
+			Streak: 2,
+		},
+	}
+	got := habits.List()
+	if !cmp.Equal(want, got, cmpopts.SortSlices(func(x, y habit.Habit) bool { return x.Name < y.Name })) {
+		t.Error(want, got)
+	}
+}
+
+func TestRetrieveNotExistingHabitFromHabits(t *testing.T) {
+	t.Parallel()
+
+	habits := habit.Habits{
+		"jog": {
+			Name:   "jog",
+			Streak: 1,
+		},
+		"walk": {
+			Name:   "walk",
+			Streak: 2,
+		},
+	}
+	want := habit.Habit{}
+	got := habits.Get("jump")
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestMarshalsHabits(t *testing.T) {
+	t.Parallel()
+
+	habits := habit.Habits{}
+	h1 := habit.Habit{
+		Name:   "jog",
+		Streak: 1,
+	}
+	h2 := habit.Habit{
+		Name:   "walk",
+		Streak: 2,
+	}
+	habits.Add(h1)
+	habits.Add(h2)
+	got, err := habits.ToJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []byte(`{"jog":{"name":"jog","date":"0001-01-01T00:00:00Z","streak":1},"walk":{"name":"walk","date":"0001-01-01T00:00:00Z","streak":2}}`)
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestUnmarshalHabits(t *testing.T) {
+	t.Parallel()
+
+	hb := []byte(`{"jog":{"name":"jog","streak":1},"walk":{"name":"walk","streak":2}}`)
+	habits := habit.Habits{}
+	err := habits.FromJSON(hb)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := habits.Get("jog")
+
+	want := habit.Habit{
+		Name:   "jog",
+		Streak: 1,
+	}
+	if !cmp.Equal(want, got) {
+		t.Error(want, got)
+	}
+	gotHabits := habits.List()
+	wantHabits := []habit.Habit{
+		{
+			Name:   "jog",
+			Streak: 1,
+		},
+		{
+			Name:   "walk",
+			Streak: 2,
+		},
+	}
+	if !cmp.Equal(wantHabits, gotHabits) {
+		t.Error(wantHabits, gotHabits)
+	}
+}
+
+func TestNewStore_CreatesNewFileStore(t *testing.T) {
 	testTime, err := time.Parse(time.RFC3339, "2022-10-01T00:00:00Z")
 	if err != nil {
 		t.Fatal(err)
@@ -301,36 +450,23 @@ func TestHabits_AddNewHabits(t *testing.T) {
 	habit.Now = func() time.Time {
 		return testTime
 	}
+	filepath := t.TempDir() + "/habits.json"
 
-	hdb := habit.Habits{
-		Collection: map[string]habit.Habit{},
-	}
-	h1, err := habit.New("jog")
+	store, err := habit.NewFileStore(habit.WithFilePath(filepath))
 	if err != nil {
 		t.Fatal(err)
 	}
-	hdb.Add(h1)
 
-	h2, err := habit.New("walk")
+	got, err := store.Load("init")
 	if err != nil {
 		t.Fatal(err)
 	}
-	hdb.Add(h2)
 
-	want := map[string]habit.Habit{
-		"jog": {
-			Name:   "jog",
-			Date:   testTime,
-			Streak: 1,
-		},
-		"walk": {
-			Name:   "walk",
-			Date:   testTime,
-			Streak: 1,
-		},
+	want := habit.Habit{
+		Name:   "init",
+		Date:   time.Date(0001, 01, 01, 00, 00, 00, 00, time.UTC),
+		Streak: 0,
 	}
-
-	got := hdb.List()
 
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
@@ -346,38 +482,34 @@ func TestHabits_RetrieveExistingHabit(t *testing.T) {
 		return testTime
 	}
 
-	hdb := habit.Habits{
-		Collection: map[string]habit.Habit{},
-	}
-	h1, err := habit.New("jog")
+	filepath := t.TempDir() + "/habits.json"
+	store, err := habit.NewFileStore(habit.WithFilePath(filepath))
 	if err != nil {
 		t.Fatal(err)
 	}
-	hdb.Add(h1)
 
-	h2, err := habit.New("walk")
-	if err != nil {
-		t.Fatal(err)
-	}
-	hdb.Add(h2)
-
-	want := habit.Habit{
+	h := habit.Habit{
 		Name:   "walk",
 		Date:   testTime,
 		Streak: 1,
 	}
 
-	got, ok := hdb.Read("walk")
-	if !ok {
-		t.Fatal("got false on existing habit")
+	err = store.Save(h)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if !cmp.Equal(want, got) {
-		t.Error(cmp.Diff(want, got))
+	got, err := store.Load("walk")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !cmp.Equal(h, got) {
+		t.Error(cmp.Diff(h, got))
 	}
 }
 
-func TestHabits_AttemptsToRetrieveNotExistingHabit(t *testing.T) {
+func TestStore_LoadErrorsOnNotExistingHabit(t *testing.T) {
 	testTime, err := time.Parse(time.RFC3339, "2022-10-01T00:00:00Z")
 	if err != nil {
 		t.Fatal(err)
@@ -386,123 +518,47 @@ func TestHabits_AttemptsToRetrieveNotExistingHabit(t *testing.T) {
 		return testTime
 	}
 
-	hdb := habit.Habits{
-		Collection: map[string]habit.Habit{},
-	}
-	h1, err := habit.New("jog")
+	filepath := t.TempDir() + "/habit.json"
+	store, err := habit.NewFileStore(habit.WithFilePath(filepath))
 	if err != nil {
 		t.Fatal(err)
 	}
-	hdb.Add(h1)
-	_, ok := hdb.Read("walk")
-	if ok {
-		t.Fatal("want false on not existing habit, got true")
-	}
-}
-
-func TestHabits_UpdateHabit(t *testing.T) {
-	testTime, err := time.Parse(time.RFC3339, "2022-10-01T00:00:00Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-	habit.Now = func() time.Time {
-		return testTime
-	}
-
-	hdb := habit.Habits{
-		Collection: map[string]habit.Habit{},
-	}
-	h1, err := habit.New("jog")
-	if err != nil {
-		t.Fatal(err)
-	}
-	h1.Streak = 2
-	hdb.Add(h1)
-
-	h2, err := habit.New("jog")
-	if err != nil {
-		t.Fatal(err)
-	}
-	h2.Streak = 3
-	hdb.Add(h2)
-
-	habits := hdb.List()
-	if len(habits) != 1 {
-		t.Errorf("want 1 habit, got %d", len(habits))
-	}
-
-	gotHabit, ok := hdb.Read("jog")
-	if !ok {
-		t.Fatal("want true, got false")
-	}
-
-	if !cmp.Equal(h2, gotHabit) {
-		t.Error(cmp.Diff(h2, gotHabit))
-	}
-}
-
-func TestMarshalJSON_MarshalsEmptyCollectionToJSON(t *testing.T) {
-	testTime, err := time.Parse(time.RFC3339, "2022-10-01T00:00:00Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-	habit.Now = func() time.Time {
-		return testTime
-	}
-
-	habits := habit.NewHabits()
-
-	b, err := habits.MarshalJSON()
-	if err != nil {
-		t.Fatal()
-	}
-
-	want := []byte("null")
-
-	if !cmp.Equal(want, b) {
-		t.Error(want, b)
-	}
-}
-
-func TestMarshalJSON_MarshalsHabitCollectionToJSON(t *testing.T) {
-	testTime, err := time.Parse(time.RFC3339, "2022-10-01T00:00:00Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-	habit.Now = func() time.Time {
-		return testTime
-	}
-
-	habits := habit.NewHabits()
 
 	h1, err := habit.New("jog")
 	if err != nil {
 		t.Fatal(err)
 	}
-	h1.Start()
-
-	h2, err := habit.New("walk")
+	h2, err := habit.New("swim")
 	if err != nil {
 		t.Fatal(err)
 	}
-	h2.Start()
 
-	habits.Add(h1)
-	habits.Add(h2)
-
-	got, err := habits.MarshalJSON()
-	if err != nil {
-		t.Fatal()
+	if err := store.Save(h1); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save(h2); err != nil {
+		t.Fatal(err)
 	}
 
-	want := []byte(`{"Collection":{"jog":{"Name":"jog","Date":"2022-10-01T00:00:00Z","Streak":1},"walk":{"Name":"walk","Date":"2022-10-01T00:00:00Z","Streak":1}}}`)
+	want := 2
+	got, err := store.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want != len(got) {
+		t.Fatalf("want: %d, got: %d", want, len(got))
+	}
 
-	if !cmp.Equal(want, got) {
-		t.Error(cmp.Diff(want, got))
+	_, err = store.Load("skiing")
+	if err == nil {
+		t.Fatal("want err, got nil")
+	}
+	if err != nil && !errors.Is(err, habit.ErrHabitNotExists) {
+		t.Errorf("want ErrHabitNotExists, got %v", err)
 	}
 }
 
-func TestUnmarshalJSON_UnmarshalsHabitCollectionFromJSON(t *testing.T) {
+func TestStore_SavesUpdatedHabit(t *testing.T) {
 	testTime, err := time.Parse(time.RFC3339, "2022-10-01T00:00:00Z")
 	if err != nil {
 		t.Fatal(err)
@@ -510,102 +566,44 @@ func TestUnmarshalJSON_UnmarshalsHabitCollectionFromJSON(t *testing.T) {
 	habit.Now = func() time.Time {
 		return testTime
 	}
-
-	habits := habit.NewHabits()
-	data := []byte(`{"Collection":{"jog":{"Name":"jog","Date":"2022-10-01T00:00:00Z","Streak":1},"walk":{"Name":"walk","Date":"2022-10-01T00:00:00Z","Streak":1}}}`)
-	err = habits.UnmarshalJSON(data)
+	filepath := t.TempDir() + "/habit.json"
+	store, err := habit.NewFileStore(habit.WithFilePath(filepath))
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// Verify habit collection has 2 entries
-	hx := habits.List()
-	if len(hx) != 2 {
-		t.Fatalf("want 2 habits, got %d", len(hx))
+	h, err := habit.New("jog")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save(h); err != nil {
+		t.Fatal(err)
 	}
 
-	// Verify habits in collection.
-	for _, h := range []string{"jog", "walk"} {
-		got, ok := habits.Read(h)
-		if !ok {
-			t.Errorf("habit %s not in the collection", h)
-		}
-		want := habit.Habit{
-			Name:   h,
-			Date:   time.Date(2022, 10, 01, 00, 00, 00, 00, time.UTC),
-			Streak: 1,
-		}
-		if !cmp.Equal(want, got) {
-			cmp.Diff(want, got)
-		}
-	}
-}
-
-func TestMarshalAndUnmarshalCollectionOfHabits(t *testing.T) {
-	testTime, err := time.Parse(time.RFC3339, "2022-10-01T00:00:00Z")
+	testTime, err = time.Parse(time.RFC3339, "2022-10-02T00:00:00Z")
 	if err != nil {
 		t.Fatal(err)
 	}
 	habit.Now = func() time.Time {
 		return testTime
 	}
+	h.Log()
 
-	habits := habit.NewHabits()
-	data := []byte(`{"Collection":{"jog":{"Name":"jog","Date":"2022-10-01T00:00:00Z","Streak":1},"walk":{"Name":"walk","Date":"2022-10-01T00:00:00Z","Streak":1}}}`)
-	err = habits.UnmarshalJSON(data)
+	if err := store.Save(h); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := store.Load("jog")
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	// Verify habit collection has 2 entries
-	hx := habits.List()
-	if len(hx) != 2 {
-		t.Fatalf("want 2 habits, got %d", len(hx))
-	}
-
-	// Verify habits in collection.
-	for _, h := range []string{"jog", "walk"} {
-		got, ok := habits.Read(h)
-		if !ok {
-			t.Errorf("habit %s not in the collection", h)
-		}
-		want := habit.Habit{
-			Name:   h,
-			Date:   time.Date(2022, 10, 01, 00, 00, 00, 00, time.UTC),
-			Streak: 1,
-		}
-		if !cmp.Equal(want, got) {
-			cmp.Diff(want, got)
-		}
-	}
-
-	read, err := habit.New("read")
-	if err != nil {
-		t.Fatal(err)
-	}
-	habits.Add(read)
-
-	data, err = habits.MarshalJSON()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	store := habit.NewHabits()
-	if err := store.UnmarshalJSON(data); err != nil {
-		t.Fatal(err)
-	}
-
-	got, ok := store.Read("read")
-	if !ok {
-		t.Fatal("habit 'read' is not in store")
 	}
 	want := habit.Habit{
-		Name:   "read",
-		Date:   time.Date(2022, 10, 01, 00, 00, 00, 00, time.UTC),
-		Streak: 1,
+		Name:   "jog",
+		Date:   time.Date(2022, 10, 02, 00, 00, 00, 00, time.UTC),
+		Streak: 2,
 	}
+
 	if !cmp.Equal(want, got) {
-		cmp.Diff(want, got)
+		t.Error(cmp.Diff(want, got))
 	}
 }
 
@@ -697,14 +695,13 @@ func TestFileStore_ListsAllTrackedHabits(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want := habit.Habits{
-		Collection: map[string]habit.Habit{
-			"walk": {Name: "walk", Date: time.Date(2022, 10, 03, 00, 00, 00, 00, time.UTC), Streak: 1},
-			"jog":  {Name: "jog", Date: time.Date(2022, 10, 01, 00, 00, 00, 00, time.UTC), Streak: 2},
-			"read": {Name: "read", Date: time.Date(2022, 10, 23, 00, 00, 00, 00, time.UTC), Streak: 3},
-		}}
+	want := []habit.Habit{
+		{Name: "walk", Date: time.Date(2022, 10, 03, 00, 00, 00, 00, time.UTC), Streak: 1},
+		{Name: "jog", Date: time.Date(2022, 10, 01, 00, 00, 00, 00, time.UTC), Streak: 2},
+		{Name: "read", Date: time.Date(2022, 10, 23, 00, 00, 00, 00, time.UTC), Streak: 3},
+	}
 
-	if !cmp.Equal(want, got) {
+	if !cmp.Equal(want, got, cmpopts.SortSlices(func(x, y habit.Habit) bool { return x.Name < y.Name })) {
 		t.Error(cmp.Diff(want, got))
 	}
 }
@@ -733,7 +730,7 @@ func TestFileStore_LoadExistingHabit(t *testing.T) {
 	}
 	got, err := store.Load("jog")
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 	want := habit.Habit{Name: "jog", Date: time.Date(2022, 10, 01, 00, 00, 00, 00, time.UTC), Streak: 2}
 	if !cmp.Equal(want, got) {
@@ -743,13 +740,13 @@ func TestFileStore_LoadExistingHabit(t *testing.T) {
 
 // func TestMain(m *testing.M) {
 // 	os.Exit(testscript.RunMain(m, map[string]func() int{
-// 		"habctl": habit.Mai	n,
+// 		"habctl": habit.Main,
 // 	}))
 // }
 
 // func TestHabit(t *testing.T) {
 // 	testscript.Run(t, testscript.Params{
-// 		Dir:  "testdata/script",
+// 		Dir:  "testdata/filestore",
 // 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){"date": cmdDate},
 // 	})
 // }
@@ -758,36 +755,36 @@ func TestFileStore_LoadExistingHabit(t *testing.T) {
 // 	if neg {
 // 		ts.Fatalf("unsupported: ! date")
 // 	}
-// 	if len(args) != 2 {
-// 		ts.Fatalf("usage: date filepath -1")
+// 	if len(args) != 3 {
+// 		ts.Fatalf("usage: date filepath -1 habit")
+// 	}
+// 	// Verify 3rd arg
+// 	habitName := strings.TrimSpace(args[2])
+// 	if habitName == "" {
+// 		ts.Fatalf("habit name required")
 // 	}
 // 	// Verify 2nd arg
 // 	dayShift, err := strconv.Atoi(args[1])
 // 	if err != nil {
 // 		ts.Fatalf("expected int of max value -1")
 // 	}
-// 	// Verify 1st arg
+
 // 	filepath := args[0]
-// 	data, err := os.ReadFile(filepath)
+// 	store, err := habit.NewFileStore(habit.WithFilePath(filepath))
 // 	if err != nil {
-// 		ts.Fatalf("reading file: %s, %v", filepath, err)
+// 		ts.Fatalf("opening test filestore: %s, %v", filepath, err)
 // 	}
 
-// 	var h habit.Habit
-// 	err = json.Unmarshal(data, &h)
+// 	h, err := store.Load(habitName)
 // 	if err != nil {
-// 		ts.Fatalf("unmarshaling data: %v", err)
+// 		ts.Fatalf("loading habit: %s from filestore", habitName)
 // 	}
 
-// 	newDate := habit.RoundDate(h.Date.AddDate(0, 0, dayShift))
+// 	newDate := habit.RoundDateToDay(h.Date.AddDate(0, 0, dayShift))
 // 	h.Date = newDate
 
-// d, err := json.Marshal(h)
-//
-//	if err != nil {
-//		ts.Fatalf("marshaling updated habit date")
-//	}
-//
-//	if err = os.WriteFile(filepath, d, 0644); err != nil {
-//		ts.Fatalf("saving updated filestore: %s, %v", filepath, err)
-//	}
+// 	err = store.Save(h)
+// 	if err != nil {
+// 		ts.Fatalf("saving updated habit: %s", h.Name)
+// 	}
+// }
