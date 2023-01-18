@@ -23,35 +23,12 @@ type Store interface {
 	List() ([]Habit, error)
 }
 
-// NewFileStore creates file storage '.habits.json'
-// in user's home dir. It creates the file '.habits.json' only if
-// the file is not present in user's home dir or the dir
-// that user defined in the $XDG_DATA_HOME Env var.
 // func NewFileStore(opts ...option) (*FileStore, error) {
 // 	path := dataDir()
 // 	err := os.MkdirAll(path, 0o700)
 // 	if err != nil && !errors.Is(err, fs.ErrExist) {
 // 		return nil, err
 // 	}
-
-// 	store := FileStore{
-// 		Path: path + "/" + "habits.json",
-// 	}
-
-// 	for _, opt := range opts {
-// 		if err := opt(&store); err != nil {
-// 			return nil, err
-// 		}
-// 	}
-
-// 	_, err = os.Stat(store.Path)
-// 	if errors.Is(err, fs.ErrNotExist) {
-// 		if err := createInitialStore(store.Path); err != nil {
-// 			return nil, err
-// 		}
-// 	}
-// 	return &store, nil
-// }
 
 // dataDir returns filepath to the habit store.
 //
@@ -69,71 +46,6 @@ func dataDir() string {
 	}
 	return home + "/.local/share"
 }
-
-// Save saves the habit in a store.
-// func (f *FileStore) Save(h Habit) error {
-// 	b, err := f.open()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	var hx Habits
-// 	if len(b) != 0 {
-// 		err = json.Unmarshal(b, &hx)
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-// 	hx.Add(h)
-// 	b, err = json.Marshal(hx)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return f.save(b)
-// }
-
-// Load returns habit value or error.
-// func (f *FileStore) Load(name string) (Habit, bool) {
-// 	b, err := f.open()
-// 	if err != nil {
-// 		return Habit{}, err
-// 	}
-// 	if len(b) == 0 {
-// 		return Habit{}, ErrHabitNotExists
-// 	}
-
-// 	var hx Habits
-// 	err = json.Unmarshal(b, &hx)
-// 	if err != nil {
-// 		return Habit{}, err
-// 	}
-// 	h, ok := hx[name]
-// 	if !ok {
-// 		return Habit{}, ErrHabitNotExists
-// 	}
-// 	return h, nil
-// }
-
-// func (f *FileStore) List() ([]Habit, error) {
-// 	b, err := f.open()
-// 	if err != nil {
-// 		return []Habit{}, err
-// 	}
-// 	var habits []Habit
-// 	if len(b) == 0 {
-// 		return habits, nil
-// 	}
-// 	var hx Habits
-// 	if len(b) != 0 {
-// 		if err := json.Unmarshal(b, &hx); err != nil {
-// 			return []Habit{}, err
-// 		}
-// 	}
-
-// 	for _, h := range hx {
-// 		habits = append(habits, h)
-// 	}
-// 	return habits, nil
-// }
 
 // Habit holds metadata for tracking the habit.
 type Habit struct {
@@ -311,18 +223,7 @@ type FileStore struct {
 	Data map[string]Habit
 }
 
-type option func(*FileStore) error
-
-func WithFilePath(path string) option {
-	return func(fs *FileStore) error {
-		if path == "" {
-			return errors.New("missing path")
-		}
-		fs.Path = path
-		return nil
-	}
-}
-
+// NewFileStore takes a path and creates a file store.
 func NewFileStore(path string) (*FileStore, error) {
 	_, err := os.Stat(path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -333,14 +234,9 @@ func NewFileStore(path string) (*FileStore, error) {
 		return &store, nil
 	}
 	return OpenFileStore(path)
-
-	// store := FileStore{
-	// 	Path: path,
-	// 	Data: map[string]Habit{},
-	// }
-	// return &store, nil
 }
 
+// Save parsists content of the store.
 func (f *FileStore) Save() error {
 	data, err := json.Marshal(f.Data)
 	if err != nil {
@@ -349,10 +245,13 @@ func (f *FileStore) Save() error {
 	return os.WriteFile(f.Path, data, 0600)
 }
 
+// GetAll returns a list of tracked habits.
 func (f FileStore) GetAll() []Habit {
 	return maps.Values(f.Data)
 }
 
+// Get takes a habit name and returns it. If the habit does not exist,
+// it returns the ErrHabitNotTracked error.
 func (f FileStore) Get(name string) (Habit, error) {
 	habit, ok := f.Data[name]
 	if !ok {
@@ -361,10 +260,13 @@ func (f FileStore) Get(name string) (Habit, error) {
 	return habit, nil
 }
 
+// Add takes habit and stores it in the store.
 func (f *FileStore) Add(habit Habit) {
 	f.Data[habit.Name] = habit
 }
 
+// OpenFileStore takes a path and returns an instance
+// of the file store. It errors if the path does not exist.
 func OpenFileStore(path string) (*FileStore, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
