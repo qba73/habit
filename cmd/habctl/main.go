@@ -1,10 +1,11 @@
 package main
 
 import (
-	"fmt"
+	"os"
+
+	"github.com/qba73/habit"
 )
 
 func main() {
-	//os.Exit(habit.Main())
-	fmt.Println("running habctl")
+	os.Exit(habit.Main())
 }

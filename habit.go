@@ -8,11 +8,13 @@ import (
 	"math"
 	"os"
 	"time"
+
+	"golang.org/x/exp/maps"
 )
 
 var (
-	Now               = time.Now
-	ErrHabitNotExists = errors.New("habit is not tracked")
+	Now                = time.Now
+	ErrHabitNotTracked = errors.New("habit is not tracked")
 )
 
 type Store interface {
@@ -21,85 +23,35 @@ type Store interface {
 	List() ([]Habit, error)
 }
 
-type option func(*FileStore) error
+// NewFileStore creates file storage '.habits.json'
+// in user's home dir. It creates the file '.habits.json' only if
+// the file is not present in user's home dir or the dir
+// that user defined in the $XDG_DATA_HOME Env var.
+// func NewFileStore(opts ...option) (*FileStore, error) {
+// 	path := dataDir()
+// 	err := os.MkdirAll(path, 0o700)
+// 	if err != nil && !errors.Is(err, fs.ErrExist) {
+// 		return nil, err
+// 	}
 
-func WithFilePath(path string) option {
-	return func(fs *FileStore) error {
-		if path == "" {
-			return errors.New("missing path")
-		}
-		fs.Path = path
-		return nil
-	}
-}
+// 	store := FileStore{
+// 		Path: path + "/" + "habits.json",
+// 	}
 
-type Habits map[string]Habit
+// 	for _, opt := range opts {
+// 		if err := opt(&store); err != nil {
+// 			return nil, err
+// 		}
+// 	}
 
-func (h Habits) Get(name string) Habit {
-	habit, ok := h[name]
-	if !ok {
-		return Habit{}
-	}
-	return habit
-}
-
-func (h Habits) Add(habit Habit) {
-	h[habit.Name] = habit
-}
-
-func (h Habits) List() []Habit {
-	var habits []Habit
-	for _, i := range h {
-		habits = append(habits, i)
-	}
-	return habits
-}
-
-func (h Habits) ToJSON() ([]byte, error) {
-	return json.Marshal(h)
-}
-
-func (h Habits) FromJSON(data []byte) error {
-	err := json.Unmarshal(data, &h)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// FileStore implements Store interface.
-type FileStore struct {
-	Path string
-}
-
-// NewFileStore attempts to creates file storage '.habit.json'
-// in user's home dir. It creates the file '.habit.json' only if
-// the file is not present in the home dir.
-func NewFileStore(opts ...option) (*FileStore, error) {
-	path := dataDir()
-	err := os.MkdirAll(path, 0o700)
-	if err != nil && !errors.Is(err, fs.ErrExist) {
-		return nil, err
-	}
-
-	store := FileStore{
-		Path: path + "/" + "habits.json",
-	}
-
-	for _, opt := range opts {
-		if err := opt(&store); err != nil {
-			return nil, err
-		}
-	}
-
-	_, err = os.Stat(store.Path)
-	if errors.Is(err, fs.ErrNotExist) {
-		if err := createInitialStore(store.Path); err != nil {
-			return nil, err
-		}
-	}
-	return &store, nil
-}
+// 	_, err = os.Stat(store.Path)
+// 	if errors.Is(err, fs.ErrNotExist) {
+// 		if err := createInitialStore(store.Path); err != nil {
+// 			return nil, err
+// 		}
+// 	}
+// 	return &store, nil
+// }
 
 // dataDir returns filepath to the habit store.
 //
@@ -118,91 +70,70 @@ func dataDir() string {
 	return home + "/.local/share"
 }
 
-// CreateInitialStore takes a path and creates
-// initial habit store.
-func createInitialStore(path string) error {
-	data := []byte(`{"init":{"name":"init", "date":"0001-01-01T00:00:00Z", "streak":0}}`)
-	return os.WriteFile(path, data, 0o600)
-}
-
 // Save saves the habit in a store.
-func (f *FileStore) Save(h Habit) error {
-	b, err := f.open()
-	if err != nil {
-		return err
-	}
-	var hx Habits
-	err = json.Unmarshal(b, &hx)
-	if err != nil {
-		return err
-	}
-	hx.Add(h)
-	b, err = json.Marshal(hx)
-	if err != nil {
-		return err
-	}
-	return f.save(b)
-}
+// func (f *FileStore) Save(h Habit) error {
+// 	b, err := f.open()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	var hx Habits
+// 	if len(b) != 0 {
+// 		err = json.Unmarshal(b, &hx)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
+// 	hx.Add(h)
+// 	b, err = json.Marshal(hx)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return f.save(b)
+// }
 
 // Load returns habit value or error.
-func (f *FileStore) Load(name string) (Habit, error) {
-	b, err := f.open()
-	if err != nil {
-		return Habit{}, err
-	}
-	var hx Habits
-	err = json.Unmarshal(b, &hx)
-	if err != nil {
-		return Habit{}, err
-	}
-	h, ok := hx[name]
-	if !ok {
-		return Habit{}, ErrHabitNotExists
-	}
-	return h, nil
-}
+// func (f *FileStore) Load(name string) (Habit, bool) {
+// 	b, err := f.open()
+// 	if err != nil {
+// 		return Habit{}, err
+// 	}
+// 	if len(b) == 0 {
+// 		return Habit{}, ErrHabitNotExists
+// 	}
 
-func (f *FileStore) List() ([]Habit, error) {
-	b, err := f.open()
-	if err != nil {
-		return []Habit{}, err
-	}
-	var hx Habits
-	if err := json.Unmarshal(b, &hx); err != nil {
-		return []Habit{}, err
-	}
+// 	var hx Habits
+// 	err = json.Unmarshal(b, &hx)
+// 	if err != nil {
+// 		return Habit{}, err
+// 	}
+// 	h, ok := hx[name]
+// 	if !ok {
+// 		return Habit{}, ErrHabitNotExists
+// 	}
+// 	return h, nil
+// }
 
-	var habits []Habit
-	for _, h := range hx {
-		if h.Name == "init" {
-			continue
-		}
-		habits = append(habits, h)
-	}
-	return habits, nil
-}
+// func (f *FileStore) List() ([]Habit, error) {
+// 	b, err := f.open()
+// 	if err != nil {
+// 		return []Habit{}, err
+// 	}
+// 	var habits []Habit
+// 	if len(b) == 0 {
+// 		return habits, nil
+// 	}
+// 	var hx Habits
+// 	if len(b) != 0 {
+// 		if err := json.Unmarshal(b, &hx); err != nil {
+// 			return []Habit{}, err
+// 		}
+// 	}
 
-func (f *FileStore) open() ([]byte, error) {
-	b, err := os.ReadFile(f.Path)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, fmt.Errorf("habit store %v does not exist: %w", f.Path, err)
-		}
-		return nil, err
-	}
-	return b, nil
-}
-
-func (f *FileStore) save(data []byte) error {
-	if err := os.WriteFile(f.Path, data, 0o600); err != nil {
-		return fmt.Errorf("saving data to store: %s, %w", f.Path, err)
-	}
-	return os.Chmod(f.Path, 0600)
-}
-
-// ==============================================================================
-// Single Habit
-// ==============================================================================
+// 	for _, h := range hx {
+// 		habits = append(habits, h)
+// 	}
+// 	return habits, nil
+// }
 
 // Habit holds metadata for tracking the habit.
 type Habit struct {
@@ -269,19 +200,6 @@ func (h *Habit) checkStreak() int {
 	return DayDiff(h.Date, Now().UTC())
 }
 
-// DayDiff takes two time obj and returns
-// diff between them in days.
-func DayDiff(start, stop time.Time) int {
-	start = RoundDateToDay(start)
-	stop = RoundDateToDay(stop)
-	return int(math.Abs(stop.Sub(start).Hours()) / 24)
-}
-
-// RoundDateToDay truncates time to 24h periods (days).
-func RoundDateToDay(t time.Time) time.Time {
-	return t.UTC().Truncate(24 * time.Hour)
-}
-
 // Log adds activity to an existing habit streak or
 // starts a new streak if the current one is broken.
 // Log returns streak lenght and a message.
@@ -298,12 +216,25 @@ func (h *Habit) Log() (int, string) {
 	return h.Streak, fmt.Sprintf("Nice work: you've done the habit '%s' for %d days in a row now. Keep it up!\n", h.Name, h.Streak)
 }
 
+// DayDiff takes two time obj and returns
+// diff between them in days.
+func DayDiff(start, stop time.Time) int {
+	start = RoundDateToDay(start)
+	stop = RoundDateToDay(stop)
+	return int(math.Abs(stop.Sub(start).Hours()) / 24)
+}
+
+// RoundDateToDay truncates time to 24h periods (days).
+func RoundDateToDay(t time.Time) time.Time {
+	return t.UTC().Truncate(24 * time.Hour)
+}
+
 // func runCLI(wr, ew io.Writer) int {
 // 	fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 // 	fset.Parse(os.Args[1:])
 // 	args := fset.Args()
 
-// 	// Make sure default file storage is created.
+// 	// Default file storage is created.
 // 	store, err := NewFileStore()
 // 	if err != nil {
 // 		fmt.Fprint(ew, err)
@@ -317,18 +248,30 @@ func (h *Habit) Log() (int, string) {
 // 			fmt.Fprint(wr, "You are not tracking any habit yet.\n")
 // 			return 0
 // 		}
-// 		_, ok := habits.Read("")
-// 		if ok {
+// 		h, err := store.Load("init")
+// 		if err != nil {
+// 			fmt.Fprint(ew, err.Error())
+// 			return 1
+// 		}
+// 		if len(habits) == 1 && h.Name == "init" {
 // 			fmt.Fprint(wr, "You are not tracking any habit yet.\n")
 // 			return 0
 // 		}
-// 		for _, h := range habits.List() {
-// 			// _, msg := h.Check()
-// 			// fmt.Fprint(os.Stdout, msg)
-// 			fmt.Fprint(os.Stdout, h)
-// 		}
+
+// 		// _, ok := habits.Read("")
+// 		// if ok {
+// 		// 	fmt.Fprint(wr, "You are not tracking any habit yet.\n")
+// 		// 	return 0
+// 		// }
+// 		// for _, h := range habits.List() {
+// 		// 	// _, msg := h.Check()
+// 		// 	// fmt.Fprint(os.Stdout, msg)
+// 		// 	fmt.Fprint(os.Stdout, h)
+// 		// }
 // 		return 0
 // 	}
+// 	return 1
+// }
 
 // 	// Start a new habit
 // 	habitName := args[0]
@@ -362,6 +305,118 @@ func (h *Habit) Log() (int, string) {
 // 	return 0
 // }
 
-// func Main() int {
-// 	return runCLI(os.Stdout, os.Stderr)
-// }
+// FileStore implements Store interface.
+type FileStore struct {
+	Path string
+	Data map[string]Habit
+}
+
+type option func(*FileStore) error
+
+func WithFilePath(path string) option {
+	return func(fs *FileStore) error {
+		if path == "" {
+			return errors.New("missing path")
+		}
+		fs.Path = path
+		return nil
+	}
+}
+
+func NewFileStore(path string) (*FileStore, error) {
+	_, err := os.Stat(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		store := FileStore{
+			Path: path,
+			Data: map[string]Habit{},
+		}
+		return &store, nil
+	}
+	return OpenFileStore(path)
+
+	// store := FileStore{
+	// 	Path: path,
+	// 	Data: map[string]Habit{},
+	// }
+	// return &store, nil
+}
+
+func (f *FileStore) Save() error {
+	data, err := json.Marshal(f.Data)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(f.Path, data, 0600)
+}
+
+func (f FileStore) GetAll() []Habit {
+	return maps.Values(f.Data)
+}
+
+func (f FileStore) Get(name string) (Habit, error) {
+	habit, ok := f.Data[name]
+	if !ok {
+		return Habit{}, ErrHabitNotTracked
+	}
+	return habit, nil
+}
+
+func (f *FileStore) Add(habit Habit) {
+	f.Data[habit.Name] = habit
+}
+
+func OpenFileStore(path string) (*FileStore, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	hx := map[string]Habit{}
+	if len(data) != 0 {
+		err = json.Unmarshal(data, &hx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &FileStore{
+		Path: path,
+		Data: hx,
+	}, nil
+}
+
+func Main() int {
+	//return runCLI(os.Stdout, os.Stderr)
+	store, err := OpenFileStore("testdata/habits.json")
+	if err != nil {
+		fmt.Fprint(os.Stderr, err)
+		return 1
+	}
+
+	habits := store.GetAll()
+	for _, h := range habits {
+		fmt.Println(h)
+	}
+
+	h, err := store.Get("jog")
+	if errors.Is(err, ErrHabitNotTracked) {
+		fmt.Fprintf(os.Stderr, "Habit %s is not tracked.\n", "jog")
+		return 0
+	}
+	fmt.Fprintf(os.Stdout, "%v\n", h)
+
+	h.Log()
+
+	store.Add(h)
+
+	err = store.Save()
+	if err != nil {
+		fmt.Fprint(os.Stderr, err)
+		return 1
+	}
+
+	h, err = store.Get("jog")
+	if err != nil {
+		fmt.Fprint(os.Stderr, err)
+	}
+
+	return 0
+}
