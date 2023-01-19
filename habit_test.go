@@ -529,8 +529,6 @@ func TestAdd_AddsAndSavesMultipleHabitsInFileStore(t *testing.T) {
 }
 
 func TestFileStore_GetExistingHabit(t *testing.T) {
-	t.Parallel()
-
 	path := "testdata/habits.json"
 	store, err := habit.NewFileStore(path)
 	if err != nil {
@@ -543,6 +541,38 @@ func TestFileStore_GetExistingHabit(t *testing.T) {
 	want := habit.Habit{Name: "jog", Date: time.Date(2022, 10, 01, 00, 00, 00, 00, time.UTC), Streak: 2}
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestCheck_PrintsOutMessageForEmptyFileStore(t *testing.T) {
+	t.Parallel()
+	path := t.TempDir() + "/empty.json"
+	store, err := habit.NewFileStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := habit.Check(store)
+	want := "You are not tracking any habit yet."
+
+	if want != got {
+		t.Errorf("want %q, got %q", want, got)
+	}
+}
+
+func TestCheck_PrintsOutMessageForNonEmptyFileStore(t *testing.T) {
+	t.Parallel()
+
+	path := "testdata/habits.json"
+	store, err := habit.NewFileStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := habit.Check(store)
+	want := "It's been 30 days since you did 'jog'. It's ok, life happens. Get back on that horse today!\nIt's been 52 days since you did 'read'. It's ok, life happens. Get back on that horse today!\nIt's been 30 days since you did 'walk'. It's ok, life happens. Get back on that horse today!\n"
+	if want != got {
+		t.Errorf("want %q, got %q", want, got)
 	}
 }
 

@@ -1,1 +1,17 @@
-{"jog":{"name":"jog","date":"2022-10-01T00:00:00Z","streak":2},"read":{"name":"read","date":"2022-10-23T00:00:00Z","streak":3},"walk":{"name":"walk","date":"2022-10-01T00:00:00Z","streak":1}}
+{
+    "jog": {
+        "name": "jog",
+        "date": "2022-10-01T00:00:00Z",
+        "streak": 2
+    },
+    "read": {
+        "name": "read",
+        "date": "2022-10-23T00:00:00Z",
+        "streak": 3
+    },
+    "walk": {
+        "name": "walk",
+        "date": "2022-10-01T00:00:00Z",
+        "streak": 1
+    }
+}

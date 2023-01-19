@@ -3,10 +3,14 @@ package habit
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"math"
 	"os"
+	"sort"
+	"strings"
 	"time"
 
 	"golang.org/x/exp/maps"
@@ -18,9 +22,10 @@ var (
 )
 
 type Store interface {
-	Save(h Habit) error
-	Load(name string) (Habit, error)
-	List() ([]Habit, error)
+	Add(h Habit)
+	Get(name string) (Habit, error)
+	GetAll() []Habit
+	Save() error
 }
 
 // func NewFileStore(opts ...option) (*FileStore, error) {
@@ -247,7 +252,9 @@ func (f *FileStore) Save() error {
 
 // GetAll returns a list of tracked habits.
 func (f FileStore) GetAll() []Habit {
-	return maps.Values(f.Data)
+	hx := maps.Values(f.Data)
+	sort.Slice(hx, func(i, j int) bool { return hx[i].Name < hx[j].Name })
+	return hx
 }
 
 // Get takes a habit name and returns it. If the habit does not exist,
@@ -285,40 +292,93 @@ func OpenFileStore(path string) (*FileStore, error) {
 	}, nil
 }
 
-func Main() int {
-	//return runCLI(os.Stdout, os.Stderr)
-	store, err := OpenFileStore("testdata/habits.json")
+// Check returns information about tracked habits.
+func Check(s Store) string {
+	habits := s.GetAll()
+	if len(habits) == 0 {
+		return "You are not tracking any habit yet."
+	}
+	var sb strings.Builder
+	for _, habit := range habits {
+		_, msg := habit.Check()
+		sb.WriteString(msg)
+	}
+	return sb.String()
+}
+
+// Log takes store and habitName and logs habit activity.
+func Log(s Store, habitName string) string {
+	return ""
+}
+
+func runCLI(wr, ew io.Writer) int {
+	fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	fset.Parse(os.Args[1:])
+	args := fset.Args()
+
+	// Default file storage is created.
+	store, err := NewFileStore("testdata/habits.json")
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprint(ew, err)
 		return 1
 	}
 
-	habits := store.GetAll()
-	for _, h := range habits {
-		fmt.Println(h)
-	}
-
-	h, err := store.Get("jog")
-	if errors.Is(err, ErrHabitNotTracked) {
-		fmt.Fprintf(os.Stderr, "Habit %s is not tracked.\n", "jog")
+	// No args, checking habits
+	if len(args) == 0 {
+		fmt.Fprint(wr, Check(store))
 		return 0
 	}
-	fmt.Fprintf(os.Stdout, "%v\n", h)
-
-	h.Log()
-
-	store.Add(h)
-
-	err = store.Save()
-	if err != nil {
-		fmt.Fprint(os.Stderr, err)
-		return 1
-	}
-
-	h, err = store.Get("jog")
-	if err != nil {
-		fmt.Fprint(os.Stderr, err)
-	}
-
 	return 0
 }
+
+func Main() int {
+	return runCLI(os.Stdout, os.Stderr)
+}
+
+// func Main() int {
+// 	//return runCLI(os.Stdout, os.Stderr)
+// 	path := "habits.json"
+// 	store, err := NewFileStore(path)
+// 	if err != nil {
+// 		fmt.Fprint(os.Stderr, err)
+// 		return 1
+// 	}
+
+// 	habits := store.GetAll()
+// 	for _, h := range habits {
+// 		fmt.Println(h)
+// 	}
+
+// 	h, err := New("jog")
+// 	if err != nil {
+// 		fmt.Fprintln(os.Stderr, err)
+// 	}
+// 	msg := h.Start()
+// 	fmt.Fprintln(os.Stdout, msg)
+// 	store.Add(h)
+
+// 	h, err = store.Get("jog")
+// 	if errors.Is(err, ErrHabitNotTracked) {
+// 		fmt.Fprintf(os.Stderr, "Habit %s is not tracked.\n", "jog")
+// 		return 0
+// 	}
+// 	fmt.Fprintf(os.Stdout, "%v\n", h)
+
+// 	_, msg = h.Log()
+// 	fmt.Fprintln(os.Stdout, msg)
+
+// 	store.Add(h)
+
+// 	err = store.Save()
+// 	if err != nil {
+// 		fmt.Fprint(os.Stderr, err)
+// 		return 1
+// 	}
+// 	fmt.Println("=========")
+// 	habits = store.GetAll()
+// 	for _, h := range habits {
+// 		fmt.Println(h)
+// 	}
+
+// 	return 0
+// }
