@@ -545,7 +545,6 @@ func TestFileStore_GetExistingHabit(t *testing.T) {
 }
 
 func TestCheck_PrintsOutMessageForEmptyFileStore(t *testing.T) {
-	t.Parallel()
 	path := t.TempDir() + "/empty.json"
 	store, err := habit.NewFileStore(path)
 	if err != nil {
@@ -561,8 +560,6 @@ func TestCheck_PrintsOutMessageForEmptyFileStore(t *testing.T) {
 }
 
 func TestCheck_PrintsOutMessageForNonEmptyFileStore(t *testing.T) {
-	t.Parallel()
-
 	path := "testdata/habits.json"
 	store, err := habit.NewFileStore(path)
 	if err != nil {
@@ -574,6 +571,64 @@ func TestCheck_PrintsOutMessageForNonEmptyFileStore(t *testing.T) {
 	if want != got {
 		t.Errorf("want %q, got %q", want, got)
 	}
+}
+
+func TestLogHabitFirstTime(t *testing.T) {
+	path := t.TempDir() + "/habits.json"
+	store, err := habit.NewFileStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := habit.Log(store, "bike")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "Good luck with your new habit 'bike'. Don't forget to do it tomorrow.\n"
+
+	if want != got {
+		t.Errorf("want %q, got %q", want, got)
+	}
+}
+
+func TestLogHabitOnSecondDayContinuesStreak(t *testing.T) {
+	testTime, err := time.Parse(time.RFC3339, "2022-09-01T03:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	habit.Now = func() time.Time {
+		return testTime
+	}
+
+	path := t.TempDir() + "/habits.json"
+	store, err := habit.NewFileStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = habit.Log(store, "read")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testTime, err = time.Parse(time.RFC3339, "2022-09-02T03:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	habit.Now = func() time.Time {
+		return testTime
+	}
+
+	got, err := habit.Log(store, "read")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "Nice work: you've done the habit 'read' for 2 days in a row now. Keep it up!\n"
+
+	if want != got {
+		t.Errorf("want %q, got %q", want, got)
+	}
+
 }
 
 // func TestMain(m *testing.M) {

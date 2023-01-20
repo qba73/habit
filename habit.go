@@ -307,8 +307,29 @@ func Check(s Store) string {
 }
 
 // Log takes store and habitName and logs habit activity.
-func Log(s Store, habitName string) string {
-	return ""
+func Log(s Store, habitName string) (string, error) {
+	h, err := s.Get(habitName)
+	if errors.Is(err, ErrHabitNotTracked) {
+		// Start tracking new habit
+		nh, err := New(habitName)
+		if err != nil {
+			return "", err
+		}
+		msg := nh.Start()
+		s.Add(nh)
+		err = s.Save()
+		if err != nil {
+			return "", err
+		}
+		return msg, nil
+	}
+	_, msg := h.Log()
+	s.Add(h)
+	err = s.Save()
+	if err != nil {
+		return "", err
+	}
+	return msg, nil
 }
 
 func runCLI(wr, ew io.Writer) int {
