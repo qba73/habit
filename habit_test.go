@@ -29,6 +29,21 @@ func TestRoundDate_RoundsHabitLogTimeToAFullDay(t *testing.T) {
 	}
 }
 
+func TestNew_ErrorsOnCreatingHabitWithEmptyName(t *testing.T) {
+	testTime, err := time.Parse(time.RFC3339, "2022-11-01T02:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	habit.Now = func() time.Time {
+		return testTime
+	}
+
+	_, err = habit.New("")
+	if err == nil {
+		t.Fatal("want err, got nil")
+	}
+}
+
 func TestNew_CreatesNewHabit(t *testing.T) {
 	testTime, err := time.Parse(time.RFC3339, "2022-11-01T02:00:00Z")
 	if err != nil {
@@ -573,6 +588,18 @@ func TestCheck_PrintsOutMessageForNonEmptyFileStore(t *testing.T) {
 	}
 }
 
+func TestLog_ErrorsOnEmptyHabitName(t *testing.T) {
+	path := t.TempDir() + "/habits.json"
+	store, err := habit.NewFileStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = habit.Log(store, "")
+	if err == nil {
+		t.Fatal("want err, got nil")
+	}
+}
+
 func TestLogHabitFirstTime(t *testing.T) {
 	path := t.TempDir() + "/habits.json"
 	store, err := habit.NewFileStore(path)
@@ -628,7 +655,72 @@ func TestLogHabitOnSecondDayContinuesStreak(t *testing.T) {
 	if want != got {
 		t.Errorf("want %q, got %q", want, got)
 	}
+}
 
+func TestLogHabitOnBrokenStreakStartsNewStreak(t *testing.T) {
+	testTime, err := time.Parse(time.RFC3339, "2022-09-01T03:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	habit.Now = func() time.Time {
+		return testTime
+	}
+
+	path := t.TempDir() + "/habits.json"
+	store, err := habit.NewFileStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = habit.Log(store, "read")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testTime, err = time.Parse(time.RFC3339, "2022-09-03T03:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	habit.Now = func() time.Time {
+		return testTime
+	}
+
+	got, err := habit.Log(store, "read")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "You last did the habit 'read' 2 days ago, so you're starting a new streak today. Good luck!\n"
+
+	if want != got {
+		t.Errorf("want %q, got %q", want, got)
+	}
+}
+
+func TestLog_MultipleHabitsWithTwoDaysStreak(t *testing.T) {
+	testTime, err := time.Parse(time.RFC3339, "2022-09-01T03:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	habit.Now = func() time.Time {
+		return testTime
+	}
+
+	path := t.TempDir() + "/habits.json"
+	store, err := habit.NewFileStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = habit.Log(store, "read")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = habit.Log(store, "play piano")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	habit.Check(store)
 }
 
 // func TestMain(m *testing.M) {
