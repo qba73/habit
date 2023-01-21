@@ -14,7 +14,9 @@ One thing that can help is to _track_ your performance of the habit. Suppose you
 
 This simple idea can be surprisingly effective, because we don't like to break a _streak_. If you've successfully done the habit every day for 29 days, there's a strong incentive not to break that run of success. Life has a way of coming at you, and you might well need that extra motivation at some point. Not today, not tomorrow, but soon: probably just around the time the novelty wears off.
 
-The aim of this project is to produce a Go package and accompanying command-line tool called ```habctl``` (habit control) that will help users track and establish a new habit, by reporting their current streak.
+The project is a Go package and accompanying command-line tool called ```habctl``` (habit control) that will help users track and establish new habits, by reporting their current streak.
+
+## Using habctl
 
 For example, if you decide you want to build the habit of jogging every day, you might tell the habit tool about it like this:
 
@@ -22,6 +24,15 @@ For example, if you decide you want to build the habit of jogging every day, you
 
 ```
 Good luck with your new habit 'jog'! Don't forget to do it again
+tomorrow.
+```
+
+If you want to track multiple daily habits you tell the habit tool to track your new activity, for example:
+
+**`habctl study`**
+
+```
+Good luck with your new habit 'study'! Don't forget to do it again
 tomorrow.
 ```
 
@@ -48,98 +59,82 @@ If you just want to check how you're doing, you could run:
 **`habctl`**
 
 ```
-You're currently on a 16-day streak for 'jog'. Stick to it!
+You're currently on a 1-day streak for 'jog'. Stick to it!
+You're currently on a 1-day streak for 'study'. Stick to it!
+```
+
+or, if you keep streeks not broken:
+
+```
+You're currently on a 4-day streak for 'jog'. Stick to it!
+You're currently on a 17-day streak for 'study'. Stick to it!
 ```
 
 Maybe the news won't be quite so good:
 
 ```
-It's been 4 days since you did 'jog'. It's okay, life happens. Get
-back on that horse today!
+You're currently on a 1-day streak for 'hike'. Stick to it!
+It's been 10 days since you did 'jog'. It's ok, life happens. Get back on that horse today!
+It's been 17 days since you did 'study'. It's ok, life happens. Get back on that horse today!
 ```
 
-## Problems to solve
+# Installation
 
-There's a surprising amount involved in what seems like a simple tool. You'll need to:
+## Storing data
 
-* Build a tool that can take command-line arguments
+The current version of the `habctl` tool utilises file-based storage. You can tell `habctl` where to locate the file by setting the env variable `$XDG_DATA_HOME`.
 
-* Write tests for a program that prints to the terminal, without printing to the terminal
+If you do not set up the env var, the `habctl` will attempt to create the file storage in `$HOME/.local/share/habits.json`.
 
-* Read data from a disk file or database, and update it as necessary
+## Using `go install`
 
-* Calculate time intervals so that you know whether to extend the current streak, or start a new one
+```
+➜  ~ go install github.com/qba73/habit/cmd/habctl@latest
+go: downloading github.com/qba73/habit v0.0.0-20230121004648-a82a2385e324
+```
 
-* Make sure you don't extend the streak when the user performs the habit more than once on a given day
+Verify installation:
 
-## Stretch goals
+```
+$ habctl
+You are not tracking any habit yet.
+```
 
-Some more refinements to add to your program if you like:
+Start tracking a habit:
 
-* Add some variation to the messages; for example, the program might get more and more congratulatory as your streak increases
+```
+$ habctl jog
+Good luck with your new habit 'jog'. Don't forget to do it tomorrow.
+```
 
-* Handle multiple habits
+Check tracked habits:
 
-* Handle habits that you want to perform at some longer interval than a day (every week, perhaps)
+```
+$ habctl
+You're currently on a 1-day streak for 'jog'. Stick to it!
+```
 
-* Add a web interface to the program so that you can check and update your habit streaks using a web browser
+## Building from source
+
+Clone this repository to your local machine:
+
+```
+git clone git@github.com:qba73/habit.git
+cd habit
+```
+
+Build `habclt` binary:
+
+```
+go build -o habctl ./cmd/habctl/main.go
+```
+
+Run `habctl`:
+
+```
+./habctl
+```
 
 ## Credits
 
 This is an educational Go project intended for students at the [Bitfield Institute of Technology](https://bitfieldconsulting.com/golang/bit).
-
-# Development
-
-Install [**gotestdox**](https://github.com/bitfield/gotestdox)
-```
-go install github.com/bitfield/gotestdox/cmd/gotestdox@latest
-```
-
-## First Iteration
-
-
-Run tests
-```
-➜  habit git:(main) ✗ gotestdox
-github.com/qba73/habit:
- ✔ Habit starts new activity with name and initial date (0.00s)
- ✔ Habit prints number of days on not broken current streak (0.00s)
- ✔ Habit records activity on next day (0.00s)
- ✔ Habit does not log duplicated activity on the same day (0.00s)
- ✔ Habit prints message on three day streak (0.00s)
- ✔ Habit prints number of days since broken streak (0.00s)
- ✔ Habit loads data from JSON file (0.00s)
- ✔ Habit prints message on starting new streak after break (0.00s)
- ✔ Habit saves habit data to file (0.00s)
- ✔ Habit saves updated habit data to file (0.00s)
-```
-
-Build ```habctl```
-```
-go build -o habctl cmd/habctl/main.go
-```
-Track and manage your habit
-```
-./habctl walk
-Good luck with your new habit 'walk'! Don't forget to do it again tomorrow.
-
-./habctl
-You're currently on a 1-day streak for 'walk'. Stick to it!
-```
-```
-./habctl walk
-Nice work: you've done the habit 'walk' for 2 days in a row now. Keep it up!
-
-./habctl
-You're currently on a 2-day streak for 'walk'. Stick to it!
-```
-```
-./habctl
-It's been 6 days since you did 'walk'. It's okay, life happens. Get back on that horse today!
-
-./habctl walk
-You last did the habit 'walk' 6 days ago, so you're starting a new streak today. Good luck!
-
-./habctl
-You're currently on a 1-day streak for 'walk'. Stick to it!
-```

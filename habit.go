@@ -121,7 +121,13 @@ func RoundDateToDay(t time.Time) time.Time {
 	return t.UTC().Truncate(24 * time.Hour)
 }
 
-func getPath() (string, error) {
+// createPath creates the path to the file storage.
+//
+// If user exported env var XDG_DATA_HOME createPath will use it
+// to generate final path to the filestore (habits.json).
+// If the env var is not set it will attempt to create
+// filepath located in $HOME/.local/share/habits.json.
+func createPath() (string, error) {
 	path := dataDir()
 	err := os.MkdirAll(path, 0o700)
 	if err != nil && !errors.Is(err, fs.ErrExist) {
@@ -262,7 +268,7 @@ func runCLI(wr, ew io.Writer) int {
 	fset.Parse(os.Args[1:])
 	args := fset.Args()
 
-	path, err := getPath()
+	path, err := createPath()
 	if err != nil {
 		fmt.Fprint(ew, err)
 		return 1
