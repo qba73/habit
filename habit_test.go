@@ -567,7 +567,7 @@ func TestCheck_PrintsOutMessageForEmptyFileStore(t *testing.T) {
 	}
 
 	got := habit.Check(store)
-	want := "You are not tracking any habit yet."
+	want := "You are not tracking any habit yet.\n"
 
 	if want != got {
 		t.Errorf("want %q, got %q", want, got)
@@ -720,7 +720,34 @@ func TestLog_MultipleHabitsWithTwoDaysStreak(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	habit.Check(store)
+	got := habit.Check(store)
+	want := "You're currently on a 1-day streak for 'play piano'. Stick to it!\nYou're currently on a 1-day streak for 'read'. Stick to it!\n"
+	if want != got {
+		t.Errorf("want %q, got %q", want, got)
+	}
+
+	testTime, err = time.Parse(time.RFC3339, "2022-09-02T03:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	habit.Now = func() time.Time {
+		return testTime
+	}
+
+	_, err = habit.Log(store, "read")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = habit.Log(store, "play piano")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got = habit.Check(store)
+	want = "You're currently on a 2-day streak for 'play piano'. Stick to it!\nYou're currently on a 2-day streak for 'read'. Stick to it!\n"
+	if want != got {
+		t.Errorf("want %q, got %q", want, got)
+	}
 }
 
 // func TestMain(m *testing.M) {

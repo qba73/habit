@@ -28,36 +28,11 @@ type Store interface {
 	Save() error
 }
 
-// func NewFileStore(opts ...option) (*FileStore, error) {
-// 	path := dataDir()
-// 	err := os.MkdirAll(path, 0o700)
-// 	if err != nil && !errors.Is(err, fs.ErrExist) {
-// 		return nil, err
-// 	}
-
-// dataDir returns filepath to the habit store.
-//
-// If user exported the env var XDG_DATA_HOME habctl will use this location to create
-// store. Otherwise habctl will attempt to create store in $HOME/.local/share directory.
-// The func panics if user's home dir can't be determined.
-func dataDir() string {
-	path, ok := os.LookupEnv("XDG_DATA_HOME")
-	if ok {
-		return path
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic("can't determine user's home dir")
-	}
-	return home + "/.local/share"
-}
-
 // Habit holds metadata for tracking the habit.
 type Habit struct {
 	Name   string    `json:"name"`
 	Date   time.Time `json:"date"`   // Date it's a date when habit activity was last recorded
 	Streak int       `json:"streak"` // Streak represents number of consecutive days when habit was recorded.
-
 }
 
 // New takes a name and returns a new habit
@@ -146,17 +121,31 @@ func RoundDateToDay(t time.Time) time.Time {
 	return t.UTC().Truncate(24 * time.Hour)
 }
 
-// func runCLI(wr, ew io.Writer) int {
-// 	fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-// 	fset.Parse(os.Args[1:])
-// 	args := fset.Args()
+func getPath() (string, error) {
+	path := dataDir()
+	err := os.MkdirAll(path, 0o700)
+	if err != nil && !errors.Is(err, fs.ErrExist) {
+		return "", err
+	}
+	return fmt.Sprintf("%s/habits.json", path), nil
+}
 
-// 	// Default file storage is created.
-// 	store, err := NewFileStore()
-// 	if err != nil {
-// 		fmt.Fprint(ew, err)
-// 		return 1
-// 	}
+// dataDir returns filepath to the habit store.
+//
+// If user exported the env var XDG_DATA_HOME habctl will use this location to create
+// store. Otherwise habctl will attempt to create store in $HOME/.local/share directory.
+// The func panics if user's home dir can't be determined.
+func dataDir() string {
+	path, ok := os.LookupEnv("XDG_DATA_HOME")
+	if ok {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		panic("can't determine user's home dir")
+	}
+	return home + "/.local/share"
+}
 
 // FileStore implements Store interface.
 type FileStore struct {
@@ -232,7 +221,7 @@ func OpenFileStore(path string) (*FileStore, error) {
 func Check(s Store) string {
 	habits := s.GetAll()
 	if len(habits) == 0 {
-		return "You are not tracking any habit yet."
+		return "You are not tracking any habit yet.\n"
 	}
 	var sb strings.Builder
 	for _, habit := range habits {
@@ -273,8 +262,14 @@ func runCLI(wr, ew io.Writer) int {
 	fset.Parse(os.Args[1:])
 	args := fset.Args()
 
+	path, err := getPath()
+	if err != nil {
+		fmt.Fprint(ew, err)
+		return 1
+	}
+
 	// Default file storage is created.
-	store, err := NewFileStore("habits.json")
+	store, err := NewFileStore(path)
 	if err != nil {
 		fmt.Fprint(ew, err)
 		return 1
