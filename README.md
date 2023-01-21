@@ -88,29 +88,29 @@ If you do not set up the env var, the `habctl` will attempt to create the file s
 
 ## Using `go install`
 
-```
-➜  ~ go install github.com/qba73/habit/cmd/habctl@latest
+```bash
+go install github.com/qba73/habit/cmd/habctl@latest
 go: downloading github.com/qba73/habit v0.0.0-20230121004648-a82a2385e324
 ```
 
 Verify installation:
 
-```
-$ habctl
+```bash
+habctl
 You are not tracking any habit yet.
 ```
 
 Start tracking a habit:
 
-```
-$ habctl jog
+```bash
+habctl jog
 Good luck with your new habit 'jog'. Don't forget to do it tomorrow.
 ```
 
 Check tracked habits:
 
-```
-$ habctl
+```bash
+habctl
 You're currently on a 1-day streak for 'jog'. Stick to it!
 ```
 
@@ -118,20 +118,20 @@ You're currently on a 1-day streak for 'jog'. Stick to it!
 
 Clone this repository to your local machine:
 
-```
+```bash
 git clone git@github.com:qba73/habit.git
 cd habit
 ```
 
 Build `habclt` binary:
 
-```
+```bash
 go build -o habctl ./cmd/habctl/main.go
 ```
 
 Run `habctl`:
 
-```
+```bash
 ./habctl
 ```
 
