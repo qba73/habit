@@ -3,12 +3,16 @@ package habit_test
 import (
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/qba73/habit"
+	"github.com/rogpeppe/go-internal/testscript"
 )
 
 func TestRoundDate_RoundsHabitLogTimeToAFullDay(t *testing.T) {
@@ -750,59 +754,53 @@ func TestLog_MultipleHabitsWithTwoDaysStreak(t *testing.T) {
 	}
 }
 
-// func TestMain(m *testing.M) {
-// 	os.Exit(testscript.RunMain(m, map[string]func() int{
-// 		"habctl": habit.Main,
-// 	}))
-// }
+func TestMain(m *testing.M) {
+	os.Exit(testscript.RunMain(m, map[string]func() int{
+		"habctl": habit.Main,
+	}))
+}
 
-// func TestHabit(t *testing.T) {
-// 	testscript.Run(t, testscript.Params{
-// 		Dir: "testdata/initial_store",
-// 	})
-// }
+func TestHabit(t *testing.T) {
+	testscript.Run(t, testscript.Params{
+		Dir:  "testdata/script",
+		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){"date": cmdDate},
+	})
+}
 
-// func TestHabit(t *testing.T) {
-// 	testscript.Run(t, testscript.Params{
-// 		Dir:  "testdata/filestore",
-// 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){"date": cmdDate},
-// 	})
-// }
+func cmdDate(ts *testscript.TestScript, neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! date")
+	}
+	if len(args) != 3 {
+		ts.Fatalf("usage: date filepath -1 habit")
+	}
+	// Verify 3rd arg
+	habitName := strings.TrimSpace(args[2])
+	if habitName == "" {
+		ts.Fatalf("habit name required")
+	}
+	// Verify 2nd arg
+	dayShift, err := strconv.Atoi(args[1])
+	if err != nil {
+		ts.Fatalf("expected int of max value -1")
+	}
 
-// func cmdDate(ts *testscript.TestScript, neg bool, args []string) {
-// 	if neg {
-// 		ts.Fatalf("unsupported: ! date")
-// 	}
-// 	if len(args) != 3 {
-// 		ts.Fatalf("usage: date filepath -1 habit")
-// 	}
-// 	// Verify 3rd arg
-// 	habitName := strings.TrimSpace(args[2])
-// 	if habitName == "" {
-// 		ts.Fatalf("habit name required")
-// 	}
-// 	// Verify 2nd arg
-// 	dayShift, err := strconv.Atoi(args[1])
-// 	if err != nil {
-// 		ts.Fatalf("expected int of max value -1")
-// 	}
+	filepath := args[0]
+	store, err := habit.NewFileStore(filepath)
+	if err != nil {
+		ts.Fatalf("opening test filestore: %s, %v", filepath, err)
+	}
 
-// 	filepath := args[0]
-// 	store, err := habit.NewFileStore(habit.WithFilePath(filepath))
-// 	if err != nil {
-// 		ts.Fatalf("opening test filestore: %s, %v", filepath, err)
-// 	}
+	h, err := store.Get(habitName)
+	if err != nil {
+		ts.Fatalf("loading habit: %s from filestore", habitName)
+	}
 
-// 	h, err := store.Load(habitName)
-// 	if err != nil {
-// 		ts.Fatalf("loading habit: %s from filestore", habitName)
-// 	}
-
-// 	newDate := habit.RoundDateToDay(h.Date.AddDate(0, 0, dayShift))
-// 	h.Date = newDate
-
-// 	err = store.Save(h)
-// 	if err != nil {
-// 		ts.Fatalf("saving updated habit: %s", h.Name)
-// 	}
-// }
+	newDate := habit.RoundDateToDay(h.Date.AddDate(0, 0, dayShift))
+	h.Date = newDate
+	store.Add(h)
+	err = store.Save()
+	if err != nil {
+		ts.Fatalf("saving updated habit: %s", h.Name)
+	}
+}
