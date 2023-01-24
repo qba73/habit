@@ -37,3 +37,16 @@ date $HOME/.local/share/habits.json -3 jog
 exec habctl jog
 stdout 'You last did the habit ''jog'' 4 days ago, so you''re starting a new streak today. Good luck!\n'
 ! stderr .
+
+# Test 7 - Habctl start tracking second habit
+env HOME=$TMPDIR
+exec habctl write
+stdout 'Good luck with your new habit ''write''. Don''t forget to do it tomorrow.\n'
+! stderr .
+
+# Test 8 - Habctl check progress of all tracked habits
+env HOME=$TMPDIR
+exec habctl
+stdout 'You''re currently on a 1-day streak for ''jog''. Stick to it!\n'
+stdout 'You''re currently on a 1-day streak for ''write''. Stick to it!\n'
+! stderr .
