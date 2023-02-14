@@ -161,15 +161,28 @@ type FileStore struct {
 
 // NewFileStore takes a path and creates a file store.
 func NewFileStore(path string) (*FileStore, error) {
+	hx := make(map[string]Habit)
+	store := FileStore{
+		Path: path,
+		Data: hx,
+	}
 	_, err := os.Stat(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		store := FileStore{
-			Path: path,
-			Data: map[string]Habit{},
-		}
 		return &store, nil
 	}
-	return OpenFileStore(path)
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	if len(data) != 0 {
+		err = json.Unmarshal(data, &hx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	store.Data = hx
+	return &store, nil
 }
 
 // Save parsists content of the store.
@@ -201,26 +214,6 @@ func (f FileStore) Get(name string) (Habit, error) {
 // Add takes habit and stores it in the store.
 func (f *FileStore) Add(habit Habit) {
 	f.Data[habit.Name] = habit
-}
-
-// OpenFileStore takes a path and returns an instance
-// of the file store. It errors if the path does not exist.
-func OpenFileStore(path string) (*FileStore, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	hx := map[string]Habit{}
-	if len(data) != 0 {
-		err = json.Unmarshal(data, &hx)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &FileStore{
-		Path: path,
-		Data: hx,
-	}, nil
 }
 
 // Check returns information about tracked habits.
