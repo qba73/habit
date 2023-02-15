@@ -18,21 +18,22 @@ import (
 
 var Now = time.Now
 
+// Store
 type Store interface {
 	Log(name string) (string, error)
 	GetAll() []Habit
 	Save() error
 }
 
-// Habit holds metadata for tracking the habit.
+// Habit holds data for tracking a habit.
 type Habit struct {
 	Name   string    `json:"name"`
 	Date   time.Time `json:"date"`   // Date it's a date when habit activity was last recorded
 	Streak int       `json:"streak"` // Streak represents number of consecutive days when habit was recorded.
 }
 
-// New takes a name and returns a new habit
-// or error if the name is an empty string.
+// New takes a name and returns a new habit.
+// It errors if the name is an empty string.
 func New(name string) (Habit, error) {
 	if name == "" {
 		return Habit{}, errors.New("missing habit name")
@@ -45,7 +46,7 @@ func New(name string) (Habit, error) {
 	return h, nil
 }
 
-// Start logs new habit activity and starts a new streak.
+// Start logs new date activity and starts a new streak.
 func (h *Habit) Start() string {
 	h.startNewStreak()
 	return fmt.Sprintf("Good luck with your new habit '%s'. Don't forget to do it tomorrow.\n", h.Name)
@@ -73,7 +74,7 @@ func (h *Habit) continueStreak() {
 	h.incStreak()
 }
 
-// Check verifies if the streak is broken or not.
+// Check verifies if the streak is broken.
 // Returned value represents number of days since
 // the habit was logged.
 func (h *Habit) Check() (int, string) {
@@ -88,9 +89,9 @@ func (h *Habit) checkStreak() int {
 	return DayDiff(h.Date, Now().UTC())
 }
 
-// Log adds activity to an existing habit streak or
-// starts a new streak if the current one is broken.
-// Log returns streak lenght and a message.
+// Log adds activity to an existing streak or
+// starts a new streak if the streak is broken.
+// It returns streak lenght and a message.
 func (h *Habit) Log() (int, string) {
 	diff := h.checkStreak()
 	if diff == 0 {
@@ -105,7 +106,8 @@ func (h *Habit) Log() (int, string) {
 }
 
 // DayDiff takes two time obj and returns
-// diff between them in days.
+// diff between them. The time delta is
+// calculated in days.
 func DayDiff(start, stop time.Time) int {
 	start = RoundDateToDay(start)
 	stop = RoundDateToDay(stop)
@@ -155,7 +157,7 @@ type FileStore struct {
 	Data map[string]Habit
 }
 
-// NewFileStore takes a path and creates a file store.
+// NewFileStore takes a path and returns a file store.
 func NewFileStore(path string) (*FileStore, error) {
 	hx := make(map[string]Habit)
 	store := FileStore{
@@ -190,7 +192,7 @@ func (f *FileStore) Save() error {
 	return os.WriteFile(f.Path, data, 0600)
 }
 
-// GetAll returns a list of tracked habits.
+// GetAll returns all tracked habits.
 func (f FileStore) GetAll() []Habit {
 	hx := maps.Values(f.Data)
 	sort.Slice(hx, func(i, j int) bool { return hx[i].Name < hx[j].Name })
@@ -206,15 +208,18 @@ func (f FileStore) Get(name string) (Habit, bool) {
 	return habit, true
 }
 
-// Add takes habit and stores it in the store.
+// Add takes a habit and adds it in the store.
 func (f *FileStore) Add(habit Habit) {
 	f.Data[habit.Name] = habit
 }
 
-func (f *FileStore) Log(name string) (string, error) {
-	habit, ok := f.Data[name]
+// Log takes a string representing habit's name and logs the habit.
+// If habit with given name does not exist, Log creates it and
+// starts tracking.
+func (f *FileStore) Log(habitName string) (string, error) {
+	habit, ok := f.Data[habitName]
 	if !ok {
-		h, err := New(name)
+		h, err := New(habitName)
 		if err != nil {
 			return "", err
 		}
@@ -228,7 +233,7 @@ func (f *FileStore) Log(name string) (string, error) {
 
 }
 
-// Check returns information about tracked habits.
+// Check takes a store and reports about all tracked habits.
 func Check(s Store) string {
 	habits := s.GetAll()
 	if len(habits) == 0 {
@@ -243,6 +248,7 @@ func Check(s Store) string {
 }
 
 // Log takes store and habitName and logs habit activity.
+// It creates a new habit if habit with provided name does not exist.
 func Log(s Store, habitName string) (string, error) {
 	msg, err := s.Log(habitName)
 	if err != nil {
