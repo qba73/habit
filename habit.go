@@ -16,14 +16,10 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-var (
-	Now                = time.Now
-	ErrHabitNotTracked = errors.New("habit is not tracked")
-)
+var Now = time.Now
 
 type Store interface {
-	Add(h Habit)
-	Get(name string) (Habit, error)
+	Log(name string) (string, error)
 	GetAll() []Habit
 	Save() error
 }
@@ -161,15 +157,28 @@ type FileStore struct {
 
 // NewFileStore takes a path and creates a file store.
 func NewFileStore(path string) (*FileStore, error) {
+	hx := make(map[string]Habit)
+	store := FileStore{
+		Path: path,
+		Data: hx,
+	}
 	_, err := os.Stat(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		store := FileStore{
-			Path: path,
-			Data: map[string]Habit{},
-		}
 		return &store, nil
 	}
-	return OpenFileStore(path)
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	if len(data) != 0 {
+		err = json.Unmarshal(data, &hx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	store.Data = hx
+	return &store, nil
 }
 
 // Save parsists content of the store.
@@ -188,14 +197,13 @@ func (f FileStore) GetAll() []Habit {
 	return hx
 }
 
-// Get takes a habit name and returns it. If the habit does not exist,
-// it returns the ErrHabitNotTracked error.
-func (f FileStore) Get(name string) (Habit, error) {
+// Get takes a habit name and returns the habit.
+func (f FileStore) Get(name string) (Habit, bool) {
 	habit, ok := f.Data[name]
 	if !ok {
-		return Habit{}, ErrHabitNotTracked
+		return Habit{}, false
 	}
-	return habit, nil
+	return habit, true
 }
 
 // Add takes habit and stores it in the store.
@@ -203,24 +211,21 @@ func (f *FileStore) Add(habit Habit) {
 	f.Data[habit.Name] = habit
 }
 
-// OpenFileStore takes a path and returns an instance
-// of the file store. It errors if the path does not exist.
-func OpenFileStore(path string) (*FileStore, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	hx := map[string]Habit{}
-	if len(data) != 0 {
-		err = json.Unmarshal(data, &hx)
+func (f *FileStore) Log(name string) (string, error) {
+	habit, ok := f.Data[name]
+	if !ok {
+		h, err := New(name)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
+		msg := h.Start()
+		f.Add(h)
+		return msg, nil
 	}
-	return &FileStore{
-		Path: path,
-		Data: hx,
-	}, nil
+	_, msg := habit.Log()
+	f.Add(habit)
+	return msg, nil
+
 }
 
 // Check returns information about tracked habits.
@@ -239,25 +244,11 @@ func Check(s Store) string {
 
 // Log takes store and habitName and logs habit activity.
 func Log(s Store, habitName string) (string, error) {
-	h, err := s.Get(habitName)
-	if errors.Is(err, ErrHabitNotTracked) {
-		// Start tracking new habit
-		nh, err := New(habitName)
-		if err != nil {
-			return "", err
-		}
-		msg := nh.Start()
-		s.Add(nh)
-		err = s.Save()
-		if err != nil {
-			return "", err
-		}
-		return msg, nil
-	}
-	_, msg := h.Log()
-	s.Add(h)
-	err = s.Save()
+	msg, err := s.Log(habitName)
 	if err != nil {
+		return "", err
+	}
+	if err = s.Save(); err != nil {
 		return "", err
 	}
 	return msg, nil
