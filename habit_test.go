@@ -336,40 +336,8 @@ func TestNewFileStore_CreatesNewEmptyStore(t *testing.T) {
 	}
 }
 
-func TestGet_RetrievesHabitFromFileStore(t *testing.T) {
-	testTime, err := time.Parse(time.RFC3339, "2022-10-01T00:00:00Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-	habit.Now = func() time.Time {
-		return testTime
-	}
-
-	filepath := "testdata/habits.json"
-	store, err := habit.NewFileStore(filepath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	h := habit.Habit{
-		Name:   "walk",
-		Date:   testTime,
-		Streak: 1,
-	}
-
-	got, ok := store.Get("walk")
-	if !ok {
-		t.Fatal("habit `walk` does not exist")
-	}
-
-	if !cmp.Equal(h, got) {
-		t.Error(cmp.Diff(h, got))
-	}
-}
-
 func TestGetAll_RetrievesAllHabitsFromFileStore(t *testing.T) {
-	path := "testdata/habits.json"
-	store, err := habit.NewFileStore(path)
+	store, err := habit.NewFileStore("testdata/.habits.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,33 +354,6 @@ func TestGetAll_RetrievesAllHabitsFromFileStore(t *testing.T) {
 	}
 }
 
-func TestGet_ErrorsOnNotExistingHabit(t *testing.T) {
-	testTime, err := time.Parse(time.RFC3339, "2022-10-01T00:00:00Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-	habit.Now = func() time.Time {
-		return testTime
-	}
-
-	path := "testdata/habits.json"
-	store, err := habit.NewFileStore(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	want := 3
-	got := store.GetAll()
-	if want != len(got) {
-		t.Fatalf("want: %d, got: %d", want, len(got))
-	}
-
-	_, ok := store.Get("skiing")
-	if ok {
-		t.Fatal("want err, got nil")
-	}
-}
-
 func TestLog_AddsHabitToFileStore(t *testing.T) {
 	testTime, err := time.Parse(time.RFC3339, "2022-10-01T00:00:00Z")
 	if err != nil {
@@ -421,7 +362,7 @@ func TestLog_AddsHabitToFileStore(t *testing.T) {
 	habit.Now = func() time.Time {
 		return testTime
 	}
-	path := t.TempDir() + "/habits.json"
+	path := t.TempDir() + "/.habits.json"
 	store, err := habit.NewFileStore(path)
 	if err != nil {
 		t.Fatal(err)
@@ -450,7 +391,7 @@ func TestLog_AddsHabitToFileStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, ok := store.Get("jog")
+	got, ok := store.Data["jog"]
 	if !ok {
 		t.Fatalf("habit 'jog' does not exist")
 	}
@@ -474,7 +415,7 @@ func TestLog_SavesHabitToEmptyFileStore(t *testing.T) {
 		return testTime
 	}
 
-	path := t.TempDir() + "/store.json"
+	path := t.TempDir() + "/.habits.json"
 	store, err := habit.NewFileStore(path)
 	if err != nil {
 		t.Fatal(err)
@@ -494,7 +435,7 @@ func TestLog_SavesHabitToEmptyFileStore(t *testing.T) {
 		Streak: 1,
 	}
 
-	got, ok := store.Get("jog")
+	got, ok := store.Data["jog"]
 	if !ok {
 		t.Fatal(err)
 	}
@@ -513,7 +454,7 @@ func TestStoreLog_SavesHabitToFileStore(t *testing.T) {
 		return testTime
 	}
 
-	path := t.TempDir() + "/habits.json"
+	path := t.TempDir() + "/.habits.json"
 
 	store, err := habit.NewFileStore(path)
 	if err != nil {
@@ -540,24 +481,8 @@ func TestStoreLog_SavesHabitToFileStore(t *testing.T) {
 	}
 }
 
-func TestFileStore_GetExistingHabit(t *testing.T) {
-	path := "testdata/habits.json"
-	store, err := habit.NewFileStore(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, ok := store.Get("jog")
-	if !ok {
-		t.Fatal("habit 'jog' does not exist")
-	}
-	want := habit.Habit{Name: "jog", Date: time.Date(2022, 10, 01, 00, 00, 00, 00, time.UTC), Streak: 2}
-	if !cmp.Equal(want, got) {
-		t.Error(cmp.Diff(want, got))
-	}
-}
-
 func TestFileStore_LogHabitOnNotExistingHabitName(t *testing.T) {
-	path := t.TempDir() + "/habits.json"
+	path := t.TempDir() + "/.habits.json"
 	store, err := habit.NewFileStore(path)
 	if err != nil {
 		t.Fatal(err)
@@ -574,7 +499,7 @@ func TestFileStore_LogHabitOnNotExistingHabitName(t *testing.T) {
 }
 
 func TestCheck_PrintsOutMessageForEmptyFileStore(t *testing.T) {
-	path := t.TempDir() + "/empty.json"
+	path := t.TempDir() + "/.habits.json"
 	store, err := habit.NewFileStore(path)
 	if err != nil {
 		t.Fatal(err)
@@ -589,8 +514,7 @@ func TestCheck_PrintsOutMessageForEmptyFileStore(t *testing.T) {
 }
 
 func TestCheck_PrintsOutMessageForNonEmptyFileStore(t *testing.T) {
-	path := "testdata/habits.json"
-	store, err := habit.NewFileStore(path)
+	store, err := habit.NewFileStore("testdata/.habits.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -603,8 +527,7 @@ func TestCheck_PrintsOutMessageForNonEmptyFileStore(t *testing.T) {
 }
 
 func TestLog_ErrorsOnEmptyHabitName(t *testing.T) {
-	path := t.TempDir() + "/habits.json"
-	store, err := habit.NewFileStore(path)
+	store, err := habit.NewFileStore(t.TempDir() + "./habits.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -615,7 +538,7 @@ func TestLog_ErrorsOnEmptyHabitName(t *testing.T) {
 }
 
 func TestLog_LogsNewHabit(t *testing.T) {
-	path := t.TempDir() + "/habits.json"
+	path := t.TempDir() + "/.habits.json"
 	store, err := habit.NewFileStore(path)
 	if err != nil {
 		t.Fatal(err)
@@ -641,7 +564,7 @@ func TestLog_LogsHabitOnSecondDayOnNotBrokenStreak(t *testing.T) {
 		return testTime
 	}
 
-	path := t.TempDir() + "/habits.json"
+	path := t.TempDir() + "/.habits.json"
 	store, err := habit.NewFileStore(path)
 	if err != nil {
 		t.Fatal(err)
@@ -680,7 +603,7 @@ func TestLog_StartsHabitAndStreakOnBrokenStreak(t *testing.T) {
 		return testTime
 	}
 
-	path := t.TempDir() + "/habits.json"
+	path := t.TempDir() + "/.habits.json"
 	store, err := habit.NewFileStore(path)
 	if err != nil {
 		t.Fatal(err)
@@ -719,7 +642,7 @@ func TestLog_LogsMultipleHabitsWithTwoDaysStreak(t *testing.T) {
 		return testTime
 	}
 
-	path := t.TempDir() + "/habits.json"
+	path := t.TempDir() + "/.habits.json"
 	store, err := habit.NewFileStore(path)
 	if err != nil {
 		t.Fatal(err)
@@ -796,20 +719,26 @@ func cmdDate(ts *testscript.TestScript, neg bool, args []string) {
 	}
 
 	filepath := args[0]
-	store, err := habit.NewFileStore(filepath)
+	fstore, err := habit.NewFileStore(filepath)
 	if err != nil {
 		ts.Fatalf("opening test filestore: %s, %v", filepath, err)
 	}
 
-	h, ok := store.Get(habitName)
+	// h, ok := fstore.Get(habitName)
+	// if !ok {
+	// 	ts.Fatalf("loading habit: %s from filestore", habitName)
+	// }
+
+	h, ok := fstore.Data[habitName]
 	if !ok {
 		ts.Fatalf("loading habit: %s from filestore", habitName)
+
 	}
 
 	newDate := habit.RoundDateToDay(h.Date.AddDate(0, 0, dayShift))
 	h.Date = newDate
-	store.Add(h)
-	err = store.Save()
+	fstore.Add(h)
+	err = fstore.Save()
 	if err != nil {
 		ts.Fatalf("saving updated habit: %s", h.Name)
 	}

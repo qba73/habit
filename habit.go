@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"math"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -119,21 +120,6 @@ func RoundDateToDay(t time.Time) time.Time {
 	return t.UTC().Truncate(24 * time.Hour)
 }
 
-// createPath creates the path to the file storage.
-//
-// If user exported env var XDG_DATA_HOME createPath will use it
-// to generate final path to the filestore (habits.json).
-// If the env var is not set it will attempt to create
-// filepath located in $HOME/.local/share/habits.json.
-func createPath() (string, error) {
-	path := dataDir()
-	err := os.MkdirAll(path, 0o700)
-	if err != nil && !errors.Is(err, fs.ErrExist) {
-		return "", err
-	}
-	return fmt.Sprintf("%s/habits.json", path), nil
-}
-
 // dataDir returns filepath to the habit store.
 //
 // If user exported the env var XDG_DATA_HOME habctl will use this location to create
@@ -146,9 +132,9 @@ func dataDir() string {
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		panic("can't determine user's home dir")
+		return "."
 	}
-	return home + "/.local/share"
+	return home
 }
 
 // FileStore implements Store interface.
@@ -189,6 +175,14 @@ func (f *FileStore) Save() error {
 	if err != nil {
 		return err
 	}
+	dir := filepath.Dir(f.Path)
+	_, err = os.Stat(dir)
+	if err != nil {
+		err = os.MkdirAll(dir, 0o700)
+		if err != nil {
+			return err
+		}
+	}
 	return os.WriteFile(f.Path, data, 0600)
 }
 
@@ -197,15 +191,6 @@ func (f FileStore) GetAll() []Habit {
 	hx := maps.Values(f.Data)
 	sort.Slice(hx, func(i, j int) bool { return hx[i].Name < hx[j].Name })
 	return hx
-}
-
-// Get takes a habit name and returns the habit.
-func (f FileStore) Get(name string) (Habit, bool) {
-	habit, ok := f.Data[name]
-	if !ok {
-		return Habit{}, false
-	}
-	return habit, true
 }
 
 // Add takes a habit and adds it in the store.
@@ -265,14 +250,8 @@ func runCLI(wr, ew io.Writer) int {
 	fset.Parse(os.Args[1:])
 	args := fset.Args()
 
-	path, err := createPath()
-	if err != nil {
-		fmt.Fprint(ew, err)
-		return 1
-	}
-
 	// Default file storage is created.
-	store, err := NewFileStore(path)
+	store, err := NewFileStore(dataDir() + "/.habits.json")
 	if err != nil {
 		fmt.Fprint(ew, err)
 		return 1
