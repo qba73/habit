@@ -82,9 +82,7 @@ It's been 17 days since you did 'study'. It's ok, life happens. Get back on that
 
 ## Storing data
 
-The current version of the `habctl` tool utilises file-based storage. You can tell `habctl` where to locate the file by setting the env variable `$XDG_DATA_HOME`.
-
-If you do not set up the env var, the `habctl` will attempt to create the file storage in `$HOME/.local/share/habits.json`.
+`habctl` persists data in a file storage. If you want to configure `habctl` where to locate the file store, export the ENV variable `$XDG_DATA_HOME`. If the env var is not exported `habctl` will create file store in user's `$HOME` directory.
 
 ## Using `go install`
 

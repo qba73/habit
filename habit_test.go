@@ -135,7 +135,7 @@ func TestLog_DoesNotDuplicateHabitActivityOnTheSameDay(t *testing.T) {
 		return testTime
 	}
 
-	days, msg := gotHabit.Log()
+	days, msg := gotHabit.Record()
 
 	wantDays := 1
 	if !cmp.Equal(wantDays, days) {
@@ -266,7 +266,7 @@ func TestLog_RecordsHabitOnNextDayOnNotBrokenStreak(t *testing.T) {
 		return habitLogTime
 	}
 
-	got, msg := h.Log()
+	got, msg := h.Record()
 	want := 2
 	if want != got {
 		t.Errorf("want %d, got %d", want, got)
@@ -301,7 +301,7 @@ func TestLog_StartsNewHabitStreakAfterBrokenStreak(t *testing.T) {
 	}
 
 	want := 1
-	got, msg := h.Log()
+	got, msg := h.Record()
 	if want != got {
 		t.Errorf("want %d, got %d", want, got)
 	}
@@ -313,6 +313,10 @@ func TestLog_StartsNewHabitStreakAfterBrokenStreak(t *testing.T) {
 	}
 }
 
+func testPath(t *testing.T) string {
+	return t.TempDir() + "/.habits.json"
+}
+
 func TestNewFileStore_CreatesNewEmptyStore(t *testing.T) {
 	testTime, err := time.Parse(time.RFC3339, "2022-10-01T00:00:00Z")
 	if err != nil {
@@ -322,8 +326,7 @@ func TestNewFileStore_CreatesNewEmptyStore(t *testing.T) {
 		return testTime
 	}
 
-	path := t.TempDir() + "/habits.json"
-	store, err := habit.NewFileStore(path)
+	store, err := habit.NewFileStore(testPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -362,8 +365,7 @@ func TestLog_AddsHabitToFileStore(t *testing.T) {
 	habit.Now = func() time.Time {
 		return testTime
 	}
-	path := t.TempDir() + "/.habits.json"
-	store, err := habit.NewFileStore(path)
+	store, err := habit.NewFileStore(testPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -383,7 +385,6 @@ func TestLog_AddsHabitToFileStore(t *testing.T) {
 	habit.Now = func() time.Time {
 		return testTime
 	}
-	//h.Log()
 
 	store.Log("jog")
 
@@ -415,8 +416,7 @@ func TestLog_SavesHabitToEmptyFileStore(t *testing.T) {
 		return testTime
 	}
 
-	path := t.TempDir() + "/.habits.json"
-	store, err := habit.NewFileStore(path)
+	store, err := habit.NewFileStore(testPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -454,9 +454,7 @@ func TestStoreLog_SavesHabitToFileStore(t *testing.T) {
 		return testTime
 	}
 
-	path := t.TempDir() + "/.habits.json"
-
-	store, err := habit.NewFileStore(path)
+	store, err := habit.NewFileStore(testPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -482,8 +480,7 @@ func TestStoreLog_SavesHabitToFileStore(t *testing.T) {
 }
 
 func TestFileStore_LogHabitOnNotExistingHabitName(t *testing.T) {
-	path := t.TempDir() + "/.habits.json"
-	store, err := habit.NewFileStore(path)
+	store, err := habit.NewFileStore(testPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -499,8 +496,7 @@ func TestFileStore_LogHabitOnNotExistingHabitName(t *testing.T) {
 }
 
 func TestCheck_PrintsOutMessageForEmptyFileStore(t *testing.T) {
-	path := t.TempDir() + "/.habits.json"
-	store, err := habit.NewFileStore(path)
+	store, err := habit.NewFileStore(testPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -527,24 +523,23 @@ func TestCheck_PrintsOutMessageForNonEmptyFileStore(t *testing.T) {
 }
 
 func TestLog_ErrorsOnEmptyHabitName(t *testing.T) {
-	store, err := habit.NewFileStore(t.TempDir() + "./habits.json")
+	store, err := habit.NewFileStore(testPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = habit.Log(store, "")
+	_, err = habit.Record(store, "")
 	if err == nil {
 		t.Fatal("want err, got nil")
 	}
 }
 
 func TestLog_LogsNewHabit(t *testing.T) {
-	path := t.TempDir() + "/.habits.json"
-	store, err := habit.NewFileStore(path)
+	store, err := habit.NewFileStore(testPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := habit.Log(store, "bike")
+	got, err := habit.Record(store, "bike")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -564,13 +559,12 @@ func TestLog_LogsHabitOnSecondDayOnNotBrokenStreak(t *testing.T) {
 		return testTime
 	}
 
-	path := t.TempDir() + "/.habits.json"
-	store, err := habit.NewFileStore(path)
+	store, err := habit.NewFileStore(testPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = habit.Log(store, "read")
+	_, err = habit.Record(store, "read")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -583,7 +577,7 @@ func TestLog_LogsHabitOnSecondDayOnNotBrokenStreak(t *testing.T) {
 		return testTime
 	}
 
-	got, err := habit.Log(store, "read")
+	got, err := habit.Record(store, "read")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -603,13 +597,12 @@ func TestLog_StartsHabitAndStreakOnBrokenStreak(t *testing.T) {
 		return testTime
 	}
 
-	path := t.TempDir() + "/.habits.json"
-	store, err := habit.NewFileStore(path)
+	store, err := habit.NewFileStore(testPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = habit.Log(store, "read")
+	_, err = habit.Record(store, "read")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -622,7 +615,7 @@ func TestLog_StartsHabitAndStreakOnBrokenStreak(t *testing.T) {
 		return testTime
 	}
 
-	got, err := habit.Log(store, "read")
+	got, err := habit.Record(store, "read")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -642,17 +635,16 @@ func TestLog_LogsMultipleHabitsWithTwoDaysStreak(t *testing.T) {
 		return testTime
 	}
 
-	path := t.TempDir() + "/.habits.json"
-	store, err := habit.NewFileStore(path)
+	store, err := habit.NewFileStore(testPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = habit.Log(store, "read")
+	_, err = habit.Record(store, "read")
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = habit.Log(store, "play piano")
+	_, err = habit.Record(store, "play piano")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -671,11 +663,11 @@ func TestLog_LogsMultipleHabitsWithTwoDaysStreak(t *testing.T) {
 		return testTime
 	}
 
-	_, err = habit.Log(store, "read")
+	_, err = habit.Record(store, "read")
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = habit.Log(store, "play piano")
+	_, err = habit.Record(store, "play piano")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -693,7 +685,7 @@ func TestMain(m *testing.M) {
 	}))
 }
 
-func TestHabit(t *testing.T) {
+func TestHabitCLI(t *testing.T) {
 	testscript.Run(t, testscript.Params{
 		Dir:  "testdata/script",
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){"date": cmdDate},
@@ -723,11 +715,6 @@ func cmdDate(ts *testscript.TestScript, neg bool, args []string) {
 	if err != nil {
 		ts.Fatalf("opening test filestore: %s, %v", filepath, err)
 	}
-
-	// h, ok := fstore.Get(habitName)
-	// if !ok {
-	// 	ts.Fatalf("loading habit: %s from filestore", habitName)
-	// }
 
 	h, ok := fstore.Data[habitName]
 	if !ok {

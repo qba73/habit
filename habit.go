@@ -19,14 +19,14 @@ import (
 
 var Now = time.Now
 
-// Store
+// Store is a data store for tracked habits.
 type Store interface {
 	Log(name string) (string, error)
 	GetAll() []Habit
 	Save() error
 }
 
-// Habit holds data for tracking a habit.
+// Habit holds data for a tracked habit.
 type Habit struct {
 	Name   string    `json:"name"`
 	Date   time.Time `json:"date"`   // Date it's a date when habit activity was last recorded
@@ -34,7 +34,7 @@ type Habit struct {
 }
 
 // New takes a name and returns a new habit.
-// It errors if the name is an empty string.
+// It errors if provided name is empty.
 func New(name string) (Habit, error) {
 	if name == "" {
 		return Habit{}, errors.New("missing habit name")
@@ -47,7 +47,7 @@ func New(name string) (Habit, error) {
 	return h, nil
 }
 
-// Start logs new date activity and starts a new streak.
+// Start starts a new streak.
 func (h *Habit) Start() string {
 	h.startNewStreak()
 	return fmt.Sprintf("Good luck with your new habit '%s'. Don't forget to do it tomorrow.\n", h.Name)
@@ -76,6 +76,7 @@ func (h *Habit) continueStreak() {
 }
 
 // Check verifies if the streak is broken.
+//
 // Returned value represents number of days since
 // the habit was logged.
 func (h *Habit) Check() (int, string) {
@@ -90,10 +91,10 @@ func (h *Habit) checkStreak() int {
 	return DayDiff(h.Date, Now().UTC())
 }
 
-// Log adds activity to an existing streak or
+// Record records activity to the existing streak or
 // starts a new streak if the streak is broken.
 // It returns streak lenght and a message.
-func (h *Habit) Log() (int, string) {
+func (h *Habit) Record() (int, string) {
 	diff := h.checkStreak()
 	if diff == 0 {
 		return h.Streak, ""
@@ -106,9 +107,7 @@ func (h *Habit) Log() (int, string) {
 	return h.Streak, fmt.Sprintf("Nice work: you've done the habit '%s' for %d days in a row now. Keep it up!\n", h.Name, h.Streak)
 }
 
-// DayDiff takes two time obj and returns
-// diff between them. The time delta is
-// calculated in days.
+// DayDiff takes two time obj and returns time delta in days.
 func DayDiff(start, stop time.Time) int {
 	start = RoundDateToDay(start)
 	stop = RoundDateToDay(stop)
@@ -120,11 +119,10 @@ func RoundDateToDay(t time.Time) time.Time {
 	return t.UTC().Truncate(24 * time.Hour)
 }
 
-// dataDir returns filepath to the habit store.
+// dataDir returns path to store's dir.
 //
-// If user exported the env var XDG_DATA_HOME habctl will use this location to create
-// store. Otherwise habctl will attempt to create store in $HOME/.local/share directory.
-// The func panics if user's home dir can't be determined.
+// If user exported the env var XDG_DATA_HOME habctl will use this location to create store.
+// If XDG_DATA_HOME is not set habctl creates store in user's $HOME directory.
 func dataDir() string {
 	path, ok := os.LookupEnv("XDG_DATA_HOME")
 	if ok {
@@ -169,7 +167,7 @@ func NewFileStore(path string) (*FileStore, error) {
 	return &store, nil
 }
 
-// Save parsists content of the store.
+// Save saves content of the store.
 func (f *FileStore) Save() error {
 	data, err := json.Marshal(f.Data)
 	if err != nil {
@@ -193,7 +191,10 @@ func (f FileStore) GetAll() []Habit {
 	return hx
 }
 
-// Add takes a habit and adds it in the store.
+// Add takes a habit and adds it to the store.
+//
+// Add does not persis data in the store. After
+// calling Add(), call Save() to persist data.
 func (f *FileStore) Add(habit Habit) {
 	f.Data[habit.Name] = habit
 }
@@ -202,7 +203,7 @@ func (f *FileStore) Add(habit Habit) {
 // If habit with given name does not exist, Log creates it and
 // starts tracking.
 func (f *FileStore) Log(habitName string) (string, error) {
-	habit, ok := f.Data[habitName]
+	h, ok := f.Data[habitName]
 	if !ok {
 		h, err := New(habitName)
 		if err != nil {
@@ -212,8 +213,8 @@ func (f *FileStore) Log(habitName string) (string, error) {
 		f.Add(h)
 		return msg, nil
 	}
-	_, msg := habit.Log()
-	f.Add(habit)
+	_, msg := h.Record()
+	f.Add(h)
 	return msg, nil
 
 }
@@ -232,9 +233,9 @@ func Check(s Store) string {
 	return sb.String()
 }
 
-// Log takes store and habitName and logs habit activity.
+// Record takes store and habitName and records habit activity.
 // It creates a new habit if habit with provided name does not exist.
-func Log(s Store, habitName string) (string, error) {
+func Record(s Store, habitName string) (string, error) {
 	msg, err := s.Log(habitName)
 	if err != nil {
 		return "", err
@@ -263,7 +264,7 @@ func runCLI(wr, ew io.Writer) int {
 		return 0
 	}
 
-	msg, err := Log(store, args[0])
+	msg, err := Record(store, args[0])
 	if err != nil {
 		fmt.Fprint(ew, err)
 		return 1
