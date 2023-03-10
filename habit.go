@@ -37,7 +37,7 @@ type Habit struct {
 // It errors if provided name is empty.
 func New(name string) (Habit, error) {
 	if name == "" {
-		return Habit{}, errors.New("missing habit name")
+		return Habit{}, errors.New("name cannot be empty")
 	}
 	h := Habit{
 		Name:   name,
@@ -91,9 +91,8 @@ func (h *Habit) checkStreak() int {
 	return DayDiff(h.Date, Now().UTC())
 }
 
-// Record records activity to the existing streak or
-// starts a new streak if the streak is broken.
-// It returns streak lenght and a message.
+// Record records activity to the existing streak or starts a new streak if the
+// streak is broken. It returns streak lenght and a message.
 func (h *Habit) Record() (int, string) {
 	diff := h.checkStreak()
 	if diff == 0 {
@@ -124,8 +123,8 @@ func RoundDateToDay(t time.Time) time.Time {
 // If user exported the env var XDG_DATA_HOME habctl will use this location to create store.
 // If XDG_DATA_HOME is not set habctl creates store in user's $HOME directory.
 func dataDir() string {
-	path, ok := os.LookupEnv("XDG_DATA_HOME")
-	if ok {
+	path := os.Getenv("XDG_DATA_HOME")
+	if path != "" {
 		return path
 	}
 	home, err := os.UserHomeDir()
@@ -181,7 +180,7 @@ func (f *FileStore) Save() error {
 			return err
 		}
 	}
-	return os.WriteFile(f.Path, data, 0600)
+	return os.WriteFile(f.Path, data, 0o600)
 }
 
 // GetAll returns all tracked habits.
@@ -216,7 +215,6 @@ func (f *FileStore) Log(habitName string) (string, error) {
 	_, msg := h.Record()
 	f.Add(h)
 	return msg, nil
-
 }
 
 // Check takes a store and reports about all tracked habits.

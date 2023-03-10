@@ -339,6 +339,30 @@ func TestNewFileStore_CreatesNewEmptyStore(t *testing.T) {
 	}
 }
 
+func TestNewFileStore_ErrorsOnInvalidData(t *testing.T) {
+	path := t.TempDir() + "/.habits.json"
+	err := os.WriteFile(path, []byte("invalid data"), 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = habit.NewFileStore(path)
+	if err == nil {
+		t.Fatal("no error")
+	}
+}
+
+func TestNewFileStore_ErrorsOnIOError(t *testing.T) {
+	path := t.TempDir() + "/.habits.json"
+	err := os.WriteFile(path, []byte("invalid data"), 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = habit.NewFileStore(path)
+	if err == nil {
+		t.Fatal("no error")
+	}
+}
+
 func TestGetAll_RetrievesAllHabitsFromFileStore(t *testing.T) {
 	store, err := habit.NewFileStore("testdata/.habits.json")
 	if err != nil {
@@ -347,9 +371,9 @@ func TestGetAll_RetrievesAllHabitsFromFileStore(t *testing.T) {
 
 	got := store.GetAll()
 	want := []habit.Habit{
-		{Name: "jog", Date: time.Date(2022, 10, 01, 00, 00, 00, 00, time.UTC), Streak: 2},
-		{Name: "read", Date: time.Date(2022, 10, 23, 00, 00, 00, 00, time.UTC), Streak: 3},
-		{Name: "walk", Date: time.Date(2022, 10, 01, 00, 00, 00, 00, time.UTC), Streak: 1},
+		{Name: "jog", Date: time.Date(2022, 10, 0o1, 0o0, 0o0, 0o0, 0o0, time.UTC), Streak: 2},
+		{Name: "read", Date: time.Date(2022, 10, 23, 0o0, 0o0, 0o0, 0o0, time.UTC), Streak: 3},
+		{Name: "walk", Date: time.Date(2022, 10, 0o1, 0o0, 0o0, 0o0, 0o0, time.UTC), Streak: 1},
 	}
 
 	if !cmp.Equal(want, got, cmpopts.SortSlices(func(x, y habit.Habit) bool { return x.Name < y.Name })) {
@@ -398,7 +422,7 @@ func TestLog_AddsHabitToFileStore(t *testing.T) {
 	}
 	want := habit.Habit{
 		Name:   "jog",
-		Date:   time.Date(2022, 10, 02, 00, 00, 00, 00, time.UTC),
+		Date:   time.Date(2022, 10, 0o2, 0o0, 0o0, 0o0, 0o0, time.UTC),
 		Streak: 2,
 	}
 
@@ -431,7 +455,7 @@ func TestLog_SavesHabitToEmptyFileStore(t *testing.T) {
 
 	want := habit.Habit{
 		Name:   "jog",
-		Date:   time.Date(2022, 10, 01, 00, 00, 00, 00, time.UTC),
+		Date:   time.Date(2022, 10, 0o1, 0o0, 0o0, 0o0, 0o0, time.UTC),
 		Streak: 1,
 	}
 
@@ -471,7 +495,7 @@ func TestStoreLog_SavesHabitToFileStore(t *testing.T) {
 	got := hx[0]
 	want := habit.Habit{
 		Name:   "run",
-		Date:   time.Date(2022, 9, 1, 00, 00, 00, 00, time.UTC),
+		Date:   time.Date(2022, 9, 1, 0o0, 0o0, 0o0, 0o0, time.UTC),
 		Streak: 1,
 	}
 	if !cmp.Equal(want, got) {
@@ -719,7 +743,6 @@ func cmdDate(ts *testscript.TestScript, neg bool, args []string) {
 	h, ok := fstore.Data[habitName]
 	if !ok {
 		ts.Fatalf("loading habit: %s from filestore", habitName)
-
 	}
 
 	newDate := habit.RoundDateToDay(h.Date.AddDate(0, 0, dayShift))

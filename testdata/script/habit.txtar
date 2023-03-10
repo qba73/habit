@@ -1,52 +1,60 @@
-# Test 1 - habctl checks that habit store is not created on first run 
 env HOME=$TMPDIR
+
+# checks that habit store is not created on first run
 exec habctl
 stdout 'You are not tracking any habit yet.\n'
 ! stderr .
 
-# Test 2 - habctl creates initial file store on first habit log
-env HOME=$TMPDIR
+# creates initial file store on first habit log
 exec habctl jog
 stdout 'Good luck with your new habit ''jog''. Don''t forget to do it tomorrow.\n'
 ! stderr .
 exists $HOME/.habits.json
 
-# Test 3 - Habctl starts tracking a new habit
-env HOME=$TMPDIR
+# starts tracking a new habit
 exec habctl
 stdout 'You''re currently on a 1-day streak for ''jog''. Stick to it!\n'
 ! stderr .
 
-# Test 4 - Habctl log habit on not broken streak
-env HOME=$TMPDIR
+# log habit on not broken streak
 date $HOME/.habits.json -1 jog
 exec habctl jog
 stdout 'Nice work: you''ve done the habit ''jog'' for 2 days in a row now. Keep it up!'
 ! stderr .
 
-# Test 5 - Habctl check habit progress on not broken streak
-env HOME=$TMPDIR
+# check habit progress on not broken streak
 date $HOME/.habits.json -1 jog
 exec habctl
 stdout 'You''re currently on a 2-day streak for ''jog''. Stick to it!\n'
 ! stderr .
 
-# Test 6 - Habctl log habit on broken streak
-env HOME=$TMPDIR
+# log habit on broken streak
 date $HOME/.habits.json -3 jog
 exec habctl jog
 stdout 'You last did the habit ''jog'' 4 days ago, so you''re starting a new streak today. Good luck!\n'
 ! stderr .
 
-# Test 7 - Habctl start tracking second habit
-env HOME=$TMPDIR
+# start tracking second habit
 exec habctl write
 stdout 'Good luck with your new habit ''write''. Don''t forget to do it tomorrow.\n'
 ! stderr .
 
-# Test 8 - Habctl check progress of all tracked habits
-env HOME=$TMPDIR
+# check progress of all tracked habits
 exec habctl
 stdout 'You''re currently on a 1-day streak for ''jog''. Stick to it!\n'
 stdout 'You''re currently on a 1-day streak for ''write''. Stick to it!\n'
 ! stderr .
+
+# uses XDG_DATA_HOME as data path if set
+env HOME=
+env XDG_DATA_HOME=$TMPDIR/xdg
+exec habctl jog
+stdout 'Good luck with your new habit ''jog''. Don''t forget to do it tomorrow.\n'
+! stderr .
+exists $TMPDIR/xdg/.habits.json
+
+# If HOME or XDG_DATA_HOME is not set, create data file in current directory
+env HOME=
+env XDG_DATA_HOME=
+exec habctl jog
+exists .habits.json
