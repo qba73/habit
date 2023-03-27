@@ -7,7 +7,7 @@ dox: ## Run tests with gotestdox
 	gotestdox
 
 test: ## Run tests
-	go test -race ./...
+	go test -race 
 
 vet: ## Run go vet
 	go vet ./...
