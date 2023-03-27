@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/exp/maps"
@@ -136,6 +137,7 @@ func dataDir() string {
 
 // FileStore implements Store interface.
 type FileStore struct {
+	mu   sync.Mutex
 	Path string
 	Data map[string]Habit
 }
@@ -168,6 +170,8 @@ func NewFileStore(path string) (*FileStore, error) {
 
 // Save saves content of the store.
 func (f *FileStore) Save() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	data, err := json.Marshal(f.Data)
 	if err != nil {
 		return err
@@ -184,7 +188,9 @@ func (f *FileStore) Save() error {
 }
 
 // GetAll returns all tracked habits.
-func (f FileStore) GetAll() []Habit {
+func (f *FileStore) GetAll() []Habit {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	hx := maps.Values(f.Data)
 	sort.Slice(hx, func(i, j int) bool { return hx[i].Name < hx[j].Name })
 	return hx
@@ -195,6 +201,8 @@ func (f FileStore) GetAll() []Habit {
 // Add does not persis data in the store. After
 // calling Add(), call Save() to persist data.
 func (f *FileStore) Add(habit Habit) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.Data[habit.Name] = habit
 }
 
