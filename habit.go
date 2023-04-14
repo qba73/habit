@@ -27,7 +27,7 @@ type Store interface {
 	Save() error
 }
 
-// Habit holds data for a tracked habit.
+// Habit holds tracked habit data.
 type Habit struct {
 	Name   string    `json:"name"`
 	Date   time.Time `json:"date"`   // Date it's a date when habit activity was last recorded
@@ -79,7 +79,7 @@ func (h *Habit) continueStreak() {
 // Check verifies if the streak is broken.
 //
 // Returned value represents number of days since
-// the habit was logged.
+// the habit was logged last time.
 func (h *Habit) Check() (int, string) {
 	diff := h.checkStreak()
 	if diff == 0 || diff == 1 {
@@ -137,8 +137,9 @@ func dataDir() string {
 
 // FileStore implements Store interface.
 type FileStore struct {
-	mu   sync.Mutex
 	Path string
+
+	mu   sync.RWMutex
 	Data map[string]Habit
 }
 
@@ -170,8 +171,8 @@ func NewFileStore(path string) (*FileStore, error) {
 
 // Save saves content of the store.
 func (f *FileStore) Save() error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 	data, err := json.Marshal(f.Data)
 	if err != nil {
 		return err
@@ -189,11 +190,18 @@ func (f *FileStore) Save() error {
 
 // GetAll returns all tracked habits.
 func (f *FileStore) GetAll() []Habit {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 	hx := maps.Values(f.Data)
 	sort.Slice(hx, func(i, j int) bool { return hx[i].Name < hx[j].Name })
 	return hx
+}
+
+func (f *FileStore) Get(habitName string) (Habit, bool) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	h, ok := f.Data[habitName]
+	return h, ok
 }
 
 // Add takes a habit and adds it to the store.
@@ -210,7 +218,7 @@ func (f *FileStore) Add(habit Habit) {
 // If habit with given name does not exist, Log creates it and
 // starts tracking.
 func (f *FileStore) Log(habitName string) (string, error) {
-	h, ok := f.Data[habitName]
+	h, ok := f.Get(habitName)
 	if !ok {
 		h, err := New(habitName)
 		if err != nil {
