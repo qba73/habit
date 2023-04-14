@@ -133,6 +133,23 @@ Run `habctl`:
 ./habctl
 ```
 
+## Development
+
+Use following make targets for developemnt and testing:
+
+```bash
+$ make
+
+Usage:
+  help                      Show help message
+  dox                       Run tests with gotestdox
+  test                      Run tests
+  vet                       Run go vet
+  check                     Run staticcheck analyzer
+  cover                     Run unit tests and generate test coverage report
+  tidy                      Run go mod tidy
+```
+
 ## Credits
 
 This is an educational Go project intended for students at the [Bitfield Institute of Technology](https://bitfieldconsulting.com/golang/bit).
