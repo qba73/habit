@@ -1,5 +1,6 @@
 # Habit tracker
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/qba73/habit.svg)](https://pkg.go.dev/github.com/qba73/habit)
 ![Go](https://github.com/qba73/habit/workflows/Go/badge.svg)
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/qba73/http?logo=go)
 ![GitHub](https://img.shields.io/github/license/qba73/habit)
