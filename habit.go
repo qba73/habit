@@ -20,14 +20,15 @@ import (
 
 var Now = time.Now
 
-// Store is a data store for tracked habits.
+// Store is the interface that wraps methods
+// for storing and retrieving habits.
 type Store interface {
 	Log(name string) (string, error)
 	GetAll() []Habit
 	Save() error
 }
 
-// Habit holds tracked habit data.
+// Habit holds state of a tracked habit.
 type Habit struct {
 	Name   string    `json:"name"`
 	Date   time.Time `json:"date"`   // Date it's a date when habit activity was last recorded
@@ -35,7 +36,7 @@ type Habit struct {
 }
 
 // New takes a name and returns a new habit.
-// It errors if provided name is empty.
+// It returns an error if name is empty.
 func New(name string) (Habit, error) {
 	if name == "" {
 		return Habit{}, errors.New("name cannot be empty")
@@ -92,8 +93,9 @@ func (h *Habit) checkStreak() int {
 	return DayDiff(h.Date, Now().UTC())
 }
 
-// Record records activity to the existing streak or starts a new streak if the
-// streak is broken. It returns streak lenght and a message.
+// Record records activity to the existing streak
+// or starts a new streak if the streak is broken.
+// It returns streak length and a corresponding message.
 func (h *Habit) Record() (int, string) {
 	diff := h.checkStreak()
 	if diff == 0 {
@@ -138,12 +140,12 @@ func dataDir() string {
 // FileStore implements Store interface.
 type FileStore struct {
 	Path string
-
 	mu   sync.RWMutex
 	Data map[string]Habit
 }
 
 // NewFileStore takes a path and returns a file store.
+// It returns an error if it can't access the file.
 func NewFileStore(path string) (*FileStore, error) {
 	hx := make(map[string]Habit)
 	store := FileStore{
@@ -188,7 +190,7 @@ func (f *FileStore) Save() error {
 	return os.WriteFile(f.Path, data, 0o600)
 }
 
-// GetAll returns all tracked habits.
+// GetAll returns tracked habits sorted by name.
 func (f *FileStore) GetAll() []Habit {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
@@ -197,6 +199,8 @@ func (f *FileStore) GetAll() []Habit {
 	return hx
 }
 
+// Get takes name and returns the habit.
+// If the habit does not exist in the store it returns false.
 func (f *FileStore) Get(habitName string) (Habit, bool) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
