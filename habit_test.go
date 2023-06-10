@@ -340,7 +340,7 @@ func TestNewFileStore_CreatesNewEmptyStore(t *testing.T) {
 }
 
 func TestNewFileStore_ErrorsOnInvalidData(t *testing.T) {
-	path := t.TempDir() + "/.habits.json"
+	path := testPath(t)
 	err := os.WriteFile(path, []byte("invalid data"), 0o600)
 	if err != nil {
 		t.Fatal(err)
@@ -352,7 +352,7 @@ func TestNewFileStore_ErrorsOnInvalidData(t *testing.T) {
 }
 
 func TestNewFileStore_ErrorsOnIOError(t *testing.T) {
-	path := t.TempDir() + "/.habits.json"
+	path := testPath(t)
 	err := os.WriteFile(path, []byte("invalid data"), 0o600)
 	if err != nil {
 		t.Fatal(err)
