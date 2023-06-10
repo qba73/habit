@@ -2,8 +2,11 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/qba73/habit.svg)](https://pkg.go.dev/github.com/qba73/habit)
 ![Go](https://github.com/qba73/habit/workflows/Go/badge.svg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/qba73/habit)](https://goreportcard.com/report/github.com/qba73/habit)
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/qba73/http?logo=go)
 ![GitHub](https://img.shields.io/github/license/qba73/habit)
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/qba73/habit)
+
 
 This is a Go program that helps with establishing new, and tracking existing habits.
 
