@@ -1,0 +1,30 @@
+builds:
+  - binary: habctl
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    main: ./cmd/habctl
+    env:
+      - CGO_ENABLED=0
+
+release:
+  prerelease: auto
+
+universal_binaries:
+  - replace: true
+
+brews:
+  - name: ipr
+    homepage: "https://github.com/qba73/habctl"
+    tap:
+      owner: qba73
+      name: homebrew-qba73
+    commit_author:
+      name: qba73
+      email: info@jarosz.dev
+
+checksum:
+  name_template: "checksums.txt"
