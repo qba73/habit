@@ -17,7 +17,7 @@ universal_binaries:
   - replace: true
 
 brews:
-  - name: ipr
+  - name: habctl
     homepage: "https://github.com/qba73/habctl"
     tap:
       owner: qba73
