@@ -18,7 +18,7 @@ universal_binaries:
 
 brews:
   - name: habctl
-    homepage: "https://github.com/qba73/habctl"
+    homepage: "https://github.com/qba73/habit"
     tap:
       owner: qba73
       name: homebrew-qba73
