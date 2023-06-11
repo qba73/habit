@@ -6,7 +6,7 @@
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/qba73/http?logo=go)
 ![GitHub](https://img.shields.io/github/license/qba73/habit)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/qba73/habit)
-[![Platforms](https://img.shields.io/badge/platforms-linux|macos-inactive.svg)]()
+[![Platforms](https://img.shields.io/badge/platforms-linux|windows|macos-inactive.svg)]()
 
 
 This is a Go program that helps with establishing new, and tracking existing habits.
