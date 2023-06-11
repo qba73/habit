@@ -1,12 +1,12 @@
 builds:
-  - binary: habctl
+  - binary: habit
     goos:
       - darwin
       - linux
     goarch:
       - amd64
       - arm64
-    main: ./cmd/habctl
+    main: ./cmd
     env:
       - CGO_ENABLED=0
 
@@ -21,13 +21,13 @@ brews:
     homepage: "https://github.com/qba73/habit"
     tap:
       owner: qba73
-      name: homebrew-qba73
+      name: homebrew-tap
     commit_author:
       name: qba73
       email: info@jarosz.dev
-    description: "A cli application for tracking daily habits."
+    description: "A cli tool for tracking daily habits."
     install: |
-      bin.install "habctl"
+      bin.install "habit"
 
 checksum:
   name_template: "checksums.txt"

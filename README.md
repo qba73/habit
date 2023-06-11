@@ -8,7 +8,6 @@
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/qba73/habit)
 [![Platforms](https://img.shields.io/badge/platforms-linux|windows|macos-inactive.svg)]()
 
-
 This is a Go program that helps with establishing new, and tracking existing habits.
 
 ## Description
@@ -19,13 +18,13 @@ One thing that can help is to _track_ your performance of the habit. Suppose you
 
 This simple idea can be surprisingly effective, because we don't like to break a _streak_. If you've successfully done the habit every day for 29 days, there's a strong incentive not to break that run of success. Life has a way of coming at you, and you might well need that extra motivation at some point. Not today, not tomorrow, but soon: probably just around the time the novelty wears off.
 
-The project is a Go package and accompanying command-line tool called ```habctl``` (habit control) that will help users track and establish new habits, by reporting their current streak.
+The project is a Go package and accompanying command-line tool called ```habit``` that will help users track and establish new habits, by reporting their current streak.
 
-## Using habctl
+## Using habit
 
 For example, if you decide you want to build the habit of jogging every day, you might tell the habit tool about it like this:
 
-**`habctl jog`**
+**`habit jog`**
 
 ```
 Good luck with your new habit 'jog'! Don't forget to do it again
@@ -34,7 +33,7 @@ tomorrow.
 
 If you want to track multiple daily habits you tell the habit tool to track your new activity, for example:
 
-**`habctl study`**
+**`habit study`**
 
 ```
 Good luck with your new habit 'study'! Don't forget to do it again
@@ -43,7 +42,7 @@ tomorrow.
 
 As the days go by, you might record each daily practice like this:
 
-**`habctl jog`**
+**`habit jog`**
 
 ```
 Nice work: you've done the habit 'jog' for 18 days in a row now.
@@ -52,7 +51,7 @@ Keep it up!
 
 If you happen to miss a couple of days, that's all right:
 
-**`habctl jog`**
+**`habit jog`**
 
 ```
 You last did the habit 'jog' 3 days ago, so you're starting a new
@@ -61,7 +60,7 @@ streak today. Good luck!
 
 If you just want to check how you're doing, you could run:
 
-**`habctl`**
+**`habit`**
 
 ```
 You're currently on a 1-day streak for 'jog'. Stick to it!
@@ -87,7 +86,7 @@ It's been 17 days since you did 'study'. It's ok, life happens. Get back on that
 
 ## Storing data
 
-`habctl` persists data in a file storage. If you want to configure `habctl` where to locate the file store, export the ENV variable `$XDG_DATA_HOME`. If the env var is not exported `habctl` will create file store in user's `$HOME` directory.
+`habit` persists data in a file storage. If you want to configure `habit` where to locate the file store, export the ENV variable `$XDG_DATA_HOME`. If the env var is not exported `habit` will create file store in user's `$HOME` directory.
 
 ## Using `go install`
 
@@ -99,21 +98,21 @@ go: downloading github.com/qba73/habit v0.0.0-20230121004648-a82a2385e324
 Verify installation:
 
 ```bash
-habctl
+habit
 You are not tracking any habit yet.
 ```
 
 Start tracking a habit:
 
 ```bash
-habctl jog
+habit jog
 Good luck with your new habit 'jog'. Don't forget to do it tomorrow.
 ```
 
 Check tracked habits:
 
 ```bash
-habctl
+habit
 You're currently on a 1-day streak for 'jog'. Stick to it!
 ```
 
@@ -126,16 +125,16 @@ git clone git@github.com:qba73/habit.git
 cd habit
 ```
 
-Build `habclt` binary:
+Build `habit` binary:
 
 ```bash
-go build -o habctl ./cmd/habctl/main.go
+go build -o habit ./cmd/habctl/main.go
 ```
 
-Run `habctl`:
+Run `habit`:
 
 ```bash
-./habctl
+./habit
 ```
 
 ## Development

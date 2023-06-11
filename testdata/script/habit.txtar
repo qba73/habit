@@ -1,46 +1,46 @@
 env HOME=$TMPDIR
 
 # checks that habit store is not created on first run
-exec habctl
+exec habit
 stdout 'You are not tracking any habit yet.\n'
 ! stderr .
 
 # creates initial file store on first habit log
-exec habctl jog
+exec habit jog
 stdout 'Good luck with your new habit ''jog''. Don''t forget to do it tomorrow.\n'
 ! stderr .
 exists $HOME/.habits.json
 
 # starts tracking a new habit
-exec habctl
+exec habit
 stdout 'You''re currently on a 1-day streak for ''jog''. Stick to it!\n'
 ! stderr .
 
 # log habit on not broken streak
 date $HOME/.habits.json -1 jog
-exec habctl jog
+exec habit jog
 stdout 'Nice work: you''ve done the habit ''jog'' for 2 days in a row now. Keep it up!'
 ! stderr .
 
 # check habit progress on not broken streak
 date $HOME/.habits.json -1 jog
-exec habctl
+exec habit
 stdout 'You''re currently on a 2-day streak for ''jog''. Stick to it!\n'
 ! stderr .
 
 # log habit on broken streak
 date $HOME/.habits.json -3 jog
-exec habctl jog
+exec habit jog
 stdout 'You last did the habit ''jog'' 4 days ago, so you''re starting a new streak today. Good luck!\n'
 ! stderr .
 
 # start tracking second habit
-exec habctl write
+exec habit write
 stdout 'Good luck with your new habit ''write''. Don''t forget to do it tomorrow.\n'
 ! stderr .
 
 # check progress of all tracked habits
-exec habctl
+exec habit
 stdout 'You''re currently on a 1-day streak for ''jog''. Stick to it!\n'
 stdout 'You''re currently on a 1-day streak for ''write''. Stick to it!\n'
 ! stderr .
@@ -48,7 +48,7 @@ stdout 'You''re currently on a 1-day streak for ''write''. Stick to it!\n'
 # uses XDG_DATA_HOME as data path if set
 env HOME=
 env XDG_DATA_HOME=$TMPDIR/xdg
-exec habctl jog
+exec habit jog
 stdout 'Good luck with your new habit ''jog''. Don''t forget to do it tomorrow.\n'
 ! stderr .
 exists $TMPDIR/xdg/.habits.json
@@ -56,5 +56,5 @@ exists $TMPDIR/xdg/.habits.json
 # If HOME or XDG_DATA_HOME is not set, create data file in current directory
 env HOME=
 env XDG_DATA_HOME=
-exec habctl jog
+exec habit jog
 exists .habits.json

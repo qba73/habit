@@ -705,7 +705,7 @@ func TestLog_LogsMultipleHabitsWithTwoDaysStreak(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	os.Exit(testscript.RunMain(m, map[string]func() int{
-		"habctl": habit.Main,
+		"habit": habit.Main,
 	}))
 }
 
