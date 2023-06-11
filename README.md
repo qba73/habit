@@ -88,6 +88,16 @@ It's been 17 days since you did 'study'. It's ok, life happens. Get back on that
 
 `habit` persists data in a file storage. If you want to configure `habit` where to locate the file store, export the ENV variable `$XDG_DATA_HOME`. If the env var is not exported `habit` will create file store in user's `$HOME` directory.
 
+## Using `brew`
+
+```bash
+brew tap qba73/tap
+```
+
+```bash
+brew install habit
+```
+
 ## Using `go install`
 
 ```bash
