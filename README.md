@@ -91,8 +91,7 @@ It's been 17 days since you did 'study'. It's ok, life happens. Get back on that
 ## Using `go install`
 
 ```bash
-go install github.com/qba73/habit/cmd/habctl@latest
-go: downloading github.com/qba73/habit v0.0.0-20230121004648-a82a2385e324
+go install github.com/qba73/habit/cmd@latest
 ```
 
 Verify installation:
@@ -128,7 +127,7 @@ cd habit
 Build `habit` binary:
 
 ```bash
-go build -o habit ./cmd/habctl/main.go
+go build -o habit ./cmd/main.go
 ```
 
 Run `habit`:
