@@ -17,7 +17,7 @@ universal_binaries:
   - replace: true
 
 brews:
-  - name: habctl
+  - name: habit
     homepage: "https://github.com/qba73/habit"
     tap:
       owner: qba73
