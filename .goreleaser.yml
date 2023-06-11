@@ -25,6 +25,9 @@ brews:
     commit_author:
       name: qba73
       email: info@jarosz.dev
+    description: "A cli application for tracking daily habits."
+    install: |
+      bin.install "habctl"
 
 checksum:
   name_template: "checksums.txt"
